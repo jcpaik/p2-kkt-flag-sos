@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import itertools
+import math
 from functools import lru_cache
 from fractions import Fraction
 from pathlib import Path
@@ -231,6 +232,296 @@ def onb_label_value(label: Label) -> Fraction:
         ]
     )
     return Fraction(1, 3 ** (vertex_count - len(components)))
+
+
+@lru_cache(maxsize=None)
+def equatorial_graph_moment(
+    edge_exponents: GraphExponent,
+    vertex_count: int,
+    regular_order: int = 0,
+) -> Fraction:
+    """Exact moment of a graph monomial on a projective equator.
+
+    ``regular_order == 0`` means Haar-uniform angle.  A positive order means
+    the uniform measure on angles ``j*pi/regular_order``.  Expanding every
+    cosine into its two Fourier characters reduces the integral to an integer
+    circulation count.
+    """
+
+    flows: dict[tuple[int, ...], int] = {
+        (0,) * vertex_count: 1
+    }
+    total_degree = 0
+    for exponent, (left, right) in zip(
+        edge_exponents,
+        graph_edges(vertex_count),
+        strict=True,
+    ):
+        if exponent == 0:
+            continue
+        total_degree += exponent
+        next_flows: dict[tuple[int, ...], int] = {}
+        for flow, weight in flows.items():
+            for choice in range(exponent + 1):
+                frequency = exponent - 2 * choice
+                shifted = list(flow)
+                shifted[left] += frequency
+                shifted[right] -= frequency
+                shifted_tuple = tuple(shifted)
+                next_flows[shifted_tuple] = (
+                    next_flows.get(shifted_tuple, 0)
+                    + weight * math.comb(exponent, choice)
+                )
+        flows = next_flows
+
+    if regular_order:
+        modulus = 2 * regular_order
+        numerator = sum(
+            weight
+            for flow, weight in flows.items()
+            if all(value % modulus == 0 for value in flow)
+        )
+    else:
+        numerator = flows.get((0,) * vertex_count, 0)
+    return Fraction(numerator, 2**total_degree)
+
+
+@lru_cache(maxsize=None)
+def pole_equator_label_value(
+    label: Label,
+    regular_order: int = 0,
+) -> Fraction:
+    """Evaluate a moment on the 1/3-pole, 2/3-equator equality measure."""
+
+    if label == ("constant",):
+        return Fraction(1)
+    if label[0] == "product":
+        value = Fraction(1)
+        for factor in label[1:]:
+            value *= pole_equator_label_value(
+                factor,  # type: ignore[arg-type]
+                regular_order,
+            )
+        return value
+    if label[0] == "pair":
+        vertex_count = 2
+    elif label[0] == "triangle":
+        vertex_count = 3
+    elif isinstance(label[0], str) and label[0].startswith("graph_"):
+        vertex_count = int(label[0].split("_")[1])
+    else:
+        raise ValueError(f"Unsupported pole-equator label: {label}")
+
+    edge_exponents = tuple(int(value) for value in label[1:])
+    equator_moment = equatorial_graph_moment(
+        edge_exponents,
+        vertex_count,
+        regular_order,
+    )
+    return (
+        Fraction(1, 3**vertex_count)
+        + Fraction(2, 3) ** vertex_count * equator_moment
+    )
+
+
+def rationalize_float(
+    value: float,
+    maximum_denominator: int = 10**9,
+    tolerance: float = 1e-10,
+) -> Fraction:
+    """Recover the exact small rational used to construct a float."""
+
+    rational = Fraction(float(value)).limit_denominator(maximum_denominator)
+    if abs(float(rational) - float(value)) > tolerance:
+        raise ValueError(f"Could not rationalize coefficient {value}")
+    return rational
+
+
+def exact_moment_matrix(
+    label_matrices: dict[Label, np.ndarray],
+    label_value,
+) -> sp.Matrix:
+    """Reconstruct a block moment matrix over the rationals."""
+
+    size = next(iter(label_matrices.values())).shape[0]
+    entries = [
+        [Fraction(0) for _ in range(size)]
+        for _ in range(size)
+    ]
+    for label, coefficient_matrix in label_matrices.items():
+        moment = label_value(label)
+        rows, columns = np.nonzero(np.abs(coefficient_matrix) > 1e-13)
+        for row, column in zip(rows, columns, strict=True):
+            entries[int(row)][int(column)] += (
+                moment
+                * rationalize_float(coefficient_matrix[row, column])
+            )
+    return sp.Matrix(
+        [
+            [
+                sp.Rational(value.numerator, value.denominator)
+                for value in row
+            ]
+            for row in entries
+        ]
+    )
+
+
+def exact_onb_moment_matrix(
+    label_matrices: dict[Label, np.ndarray],
+) -> sp.Matrix:
+    """Reconstruct a block's ONB moment matrix over the rationals."""
+
+    return exact_moment_matrix(label_matrices, onb_label_value)
+
+
+def exact_nullspace(moment_matrix: sp.Matrix) -> sp.Matrix:
+    """Return a bounded rational basis for an exact moment-matrix kernel."""
+
+    if moment_matrix.is_zero_matrix:
+        return sp.eye(moment_matrix.rows)
+
+    vectors = moment_matrix.nullspace(simplify=False)
+    if not vectors:
+        return sp.zeros(moment_matrix.rows, 0)
+
+    primitive_vectors: list[sp.Matrix] = []
+    for vector in vectors:
+        denominators = [
+            int(sp.denom(entry))
+            for entry in vector
+            if entry
+        ]
+        common_denominator = math.lcm(*denominators) if denominators else 1
+        integers = [
+            int(entry * common_denominator)
+            for entry in vector
+        ]
+        divisor = math.gcd(*(abs(value) for value in integers if value)) or 1
+        integers = [value // divisor for value in integers]
+        scale = max(abs(value) for value in integers) or 1
+        primitive_vectors.append(
+            sp.Matrix(
+                [
+                    sp.Rational(value, scale)
+                    for value in integers
+                ]
+            )
+        )
+
+    basis = sp.Matrix.hstack(*primitive_vectors)
+    if moment_matrix * basis != sp.zeros(moment_matrix.rows, basis.cols):
+        raise ValueError("Exact nullspace reconstruction failed")
+    return basis
+
+
+def exact_onb_nullspace(
+    label_matrices: dict[Label, np.ndarray],
+) -> sp.Matrix:
+    """Return a bounded rational basis for the exact ONB kernel."""
+
+    moment_matrix = exact_onb_moment_matrix(label_matrices)
+    return exact_nullspace(moment_matrix)
+
+
+def symmetric_matrix_generators(
+    label_matrices: dict[Label, np.ndarray],
+) -> list[dict[Label, Fraction]]:
+    """Flatten a free symmetric matrix multiplier into exact columns.
+
+    ``sum(M * X)`` counts an off-diagonal entry twice when both ``M`` and
+    ``X`` are symmetric, so each independent upper-triangular coordinate of
+    ``X`` has coefficient ``M_ij + M_ji``.
+    """
+
+    size = next(iter(label_matrices.values())).shape[0]
+    generators: list[dict[Label, Fraction]] = []
+    for row in range(size):
+        for column in range(row, size):
+            generator: dict[Label, Fraction] = {}
+            for label, matrix in label_matrices.items():
+                value = matrix[row, column]
+                if row != column:
+                    value += matrix[column, row]
+                if abs(value) > 1e-13:
+                    generator[label] = rationalize_float(float(value))
+            if generator:
+                generators.append(generator)
+    return generators
+
+
+def exact_equality_quotient_rows(
+    ordered_labels: list[Label],
+    free_label_matrices: Iterable[dict[Label, np.ndarray]],
+    relations: Iterable[dict[Label, float]],
+) -> tuple[list[dict[Label, Fraction]], int, int]:
+    """Return an exact sparse basis annihilating all free equality terms.
+
+    If ``F`` has the unrestricted KKT/rank generators as columns, a
+    coefficient residual ``r`` can be absorbed by those generators exactly
+    when every returned row ``q`` satisfies ``q^T r = 0``.  The rows form a
+    basis of ``ker(F^T)`` and are obtained by rational RREF, without a
+    floating-point rank decision.
+    """
+
+    generators: list[dict[Label, Fraction]] = []
+    for label_matrices in free_label_matrices:
+        generators.extend(symmetric_matrix_generators(label_matrices))
+    generators.extend(
+        {
+            label: rationalize_float(float(coefficient))
+            for label, coefficient in relation.items()
+            if abs(coefficient) > 1e-13
+        }
+        for relation in relations
+    )
+    generators = [generator for generator in generators if generator]
+
+    label_indices = {
+        label: index for index, label in enumerate(ordered_labels)
+    }
+    transpose = sp.MutableSparseMatrix(
+        len(generators),
+        len(ordered_labels),
+        {},
+    )
+    for row, generator in enumerate(generators):
+        for label, coefficient in generator.items():
+            transpose[row, label_indices[label]] = sp.Rational(
+                coefficient.numerator,
+                coefficient.denominator,
+            )
+
+    reduced, pivot_columns = transpose.rref(simplify=False)
+    pivot_set = set(pivot_columns)
+    quotient_rows: list[dict[Label, Fraction]] = []
+    for free_column in range(len(ordered_labels)):
+        if free_column in pivot_set:
+            continue
+        row: dict[Label, Fraction] = {
+            ordered_labels[free_column]: Fraction(1)
+        }
+        for pivot_row, pivot_column in enumerate(pivot_columns):
+            value = -reduced[pivot_row, free_column]
+            if value:
+                row[ordered_labels[pivot_column]] = Fraction(
+                    int(sp.numer(value)),
+                    int(sp.denom(value)),
+                )
+        quotient_rows.append(row)
+
+    # An exact internal check protects the certificate search from an
+    # accidentally omitted factor of two in a free matrix block.
+    for row in quotient_rows:
+        for generator in generators:
+            pairing = sum(
+                coefficient * generator.get(label, Fraction(0))
+                for label, coefficient in row.items()
+            )
+            if pairing:
+                raise ValueError("Equality quotient construction failed")
+
+    return quotient_rows, len(generators), len(pivot_columns)
 
 
 def reduce_graph_matrix(matrix: list[list[int]]) -> tuple[Label | None, Fraction]:
@@ -1892,16 +2183,21 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         ] = []
         constraints = []
         for name, _, label_matrices in blocks:
-            onb_matrix = sum(
-                float(onb_label_value(label)) * coefficient_matrix
-                for label, coefficient_matrix in label_matrices.items()
-            )
-            eigenvalues, eigenvectors = np.linalg.eigh(onb_matrix)
-            if eigenvalues[0] < -1e-8:
-                raise ValueError(
-                    f"Block {name} is not PSD on the ONB: {eigenvalues[0]}"
+            if args.exact_onb_face:
+                exact_onb_kernel = exact_onb_nullspace(label_matrices)
+                nullspace = np.array(exact_onb_kernel, dtype=float)
+            else:
+                onb_matrix = sum(
+                    float(onb_label_value(label)) * coefficient_matrix
+                    for label, coefficient_matrix in label_matrices.items()
                 )
-            nullspace = eigenvectors[:, eigenvalues <= 1e-8]
+                eigenvalues, eigenvectors = np.linalg.eigh(onb_matrix)
+                if eigenvalues[0] < -1e-8:
+                    raise ValueError(
+                        f"Block {name} is not PSD on the ONB: "
+                        f"{eigenvalues[0]}"
+                    )
+                nullspace = eigenvectors[:, eigenvalues <= 1e-8]
             if nullspace.shape[1] == 0:
                 continue
             reduced_matrices = {
@@ -1930,7 +2226,164 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             constraints.append(reduced_variable >> 0)
         blocks = reduced_blocks
 
+    pole_equator_faces: list[int] = []
+    if args.pole_equator_faces:
+        for token in args.pole_equator_faces.split(","):
+            token = token.strip().lower()
+            pole_equator_faces.append(
+                0 if token in {"continuous", "haar"} else int(token)
+            )
+    for regular_order in pole_equator_faces:
+        if args.target_epsilon != 0:
+            raise ValueError(
+                "Pole-equator facial reduction is valid only for the "
+                "sharp target"
+            )
+        target_value = sum(
+            Fraction(str(coefficient))
+            * pole_equator_label_value(label, regular_order)
+            for label, coefficient in target.items()
+        )
+        if target_value:
+            raise ValueError(
+                "Requested pole-equator measure does not annihilate target"
+            )
+
+        reduced_blocks = []
+        constraints = []
+        face_name = (
+            "continuous"
+            if regular_order == 0
+            else f"regular_{regular_order}"
+        )
+        for name, _, label_matrices in blocks:
+            moment_matrix = exact_moment_matrix(
+                label_matrices,
+                lambda label, order=regular_order: (
+                    pole_equator_label_value(label, order)
+                ),
+            )
+            numerical_moment_matrix = np.array(moment_matrix, dtype=float)
+            if (
+                numerical_moment_matrix.size
+                and np.linalg.eigvalsh(numerical_moment_matrix)[0] < -1e-8
+            ):
+                raise ValueError(
+                    f"Block {name} is not PSD on pole-equator "
+                    f"face {face_name}"
+                )
+            exact_kernel = exact_nullspace(moment_matrix)
+            if exact_kernel.shape[1] == 0:
+                continue
+            kernel = np.array(exact_kernel, dtype=float)
+            reduced_matrices = {
+                label: kernel.T @ matrix @ kernel
+                for label, matrix in label_matrices.items()
+            }
+            reduced_matrices = {
+                label: matrix
+                for label, matrix in reduced_matrices.items()
+                if np.max(np.abs(matrix)) > 1e-13
+            }
+            if not reduced_matrices:
+                continue
+            reduced_variable = cp.Variable(
+                (kernel.shape[1], kernel.shape[1]),
+                symmetric=True,
+                name=f"{name}_{face_name}_face",
+            )
+            reduced_blocks.append(
+                (
+                    name,
+                    reduced_variable,
+                    reduced_matrices,
+                )
+            )
+            constraints.append(reduced_variable >> 0)
+        blocks = reduced_blocks
+
+    numerical_face_paths = [
+        Path(token.strip())
+        for token in args.numerical_faces.split(",")
+        if token.strip()
+    ] if args.numerical_faces else []
+    for face_index, face_path in enumerate(numerical_face_paths):
+        data = np.load(face_path)
+        stored_labels = list(data["labels"])
+        expected_labels = [repr(label) for label in ordered_labels]
+        if stored_labels != expected_labels:
+            raise ValueError(
+                f"Numerical face {face_path} uses a different label basis"
+            )
+        face_moments = np.array(data["moments"], dtype=float)
+        reduced_blocks = []
+        constraints = []
+        for name, _, label_matrices in blocks:
+            moment_matrix = sum(
+                face_moments[ordered_labels.index(label)] * matrix
+                for label, matrix in label_matrices.items()
+            )
+            eigenvalues, eigenvectors = np.linalg.eigh(moment_matrix)
+            if eigenvalues[0] < -100 * args.face_threshold:
+                raise ValueError(
+                    f"Numerical face {face_path} is not PSD on block "
+                    f"{name}: {eigenvalues[0]}"
+                )
+            kernel = eigenvectors[
+                :,
+                eigenvalues <= args.face_threshold,
+            ]
+            if kernel.shape[1] == 0:
+                continue
+            reduced_matrices = {
+                label: kernel.T @ matrix @ kernel
+                for label, matrix in label_matrices.items()
+            }
+            reduced_matrices = {
+                label: matrix
+                for label, matrix in reduced_matrices.items()
+                if np.max(np.abs(matrix)) > 1e-13
+            }
+            if not reduced_matrices:
+                continue
+            reduced_variable = cp.Variable(
+                (kernel.shape[1], kernel.shape[1]),
+                symmetric=True,
+                name=f"{name}_numerical_face_{face_index}",
+            )
+            reduced_blocks.append(
+                (
+                    name,
+                    reduced_variable,
+                    reduced_matrices,
+                )
+            )
+            constraints.append(reduced_variable >> 0)
+        blocks = reduced_blocks
+
     if args.check_onb:
+        quotient_count = 0
+        equality_generator_count = 0
+        equality_rank = 0
+        if args.eliminate_free:
+            quotient_rows, equality_generator_count, equality_rank = (
+                exact_equality_quotient_rows(
+                    ordered_labels,
+                    (
+                        label_matrices
+                        for _, _, label_matrices in free_blocks
+                    ),
+                    (
+                        relation
+                        for _, relation in (
+                            gradient_relations
+                            + potential_relations
+                            + rank_relations
+                        )
+                    ),
+                )
+            )
+            quotient_count = len(quotient_rows)
         onb_values = {
             label: float(onb_label_value(label))
             for label in ordered_labels
@@ -1985,12 +2438,151 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 coefficient * onb_values[label]
                 for label, coefficient in target.items()
             ),
+            "labels": len(ordered_labels),
+            "block_sizes": {
+                name: variable.shape[0]
+                for name, variable, _ in blocks
+            },
+            "free_block_sizes": {
+                name: variable.shape[0]
+                for name, variable, _ in free_blocks
+            },
+            "relation_counts": {
+                "gradient": len(gradient_relations),
+                "potential": len(potential_relations),
+                "rank": len(rank_relations),
+            },
+            "equality_generators": equality_generator_count,
+            "equality_rank": equality_rank,
+            "quotient_constraints": quotient_count,
             "worst_block_eigenvalue": worst_block_eigenvalue,
             "worst_free_residual": worst_free_residual,
             "worst_relation_residual": worst_relation_residual,
             "block_checks": block_checks,
             "free_checks": free_checks,
             "relation_checks": relation_checks,
+        }
+
+    if args.find_face:
+        label_indices = {
+            label: index for index, label in enumerate(ordered_labels)
+        }
+        face_moments = cp.Variable(
+            len(ordered_labels),
+            name="face_moments",
+        )
+        face_constraints: list[cp.Constraint] = []
+        trace_terms: list[cp.Expression] = []
+        for _, _, label_matrices in blocks:
+            if not label_matrices:
+                continue
+            raw_block_scale = max(
+                np.max(np.abs(matrix))
+                for matrix in label_matrices.values()
+            )
+            block_scale = (
+                raw_block_scale if args.scale_constraints else 1.0
+            )
+            matrix = sum(
+                face_moments[label_indices[label]]
+                * (coefficient_matrix / block_scale)
+                for label, coefficient_matrix in label_matrices.items()
+            )
+            face_constraints.append(matrix >> 0)
+            trace_terms.append(cp.trace(matrix))
+        for _, _, label_matrices in free_blocks:
+            raw_block_scale = max(
+                np.max(np.abs(matrix))
+                for matrix in label_matrices.values()
+            )
+            block_scale = (
+                raw_block_scale if args.scale_constraints else 1.0
+            )
+            matrix = sum(
+                face_moments[label_indices[label]]
+                * (coefficient_matrix / block_scale)
+                for label, coefficient_matrix in label_matrices.items()
+            )
+            face_constraints.append(matrix == 0)
+        for _, relation in (
+            gradient_relations + potential_relations + rank_relations
+        ):
+            relation_scale = (
+                max(abs(coefficient) for coefficient in relation.values())
+                if args.scale_constraints
+                else 1.0
+            )
+            face_constraints.append(
+                sum(
+                    (coefficient / relation_scale)
+                    * face_moments[label_indices[label]]
+                    for label, coefficient in relation.items()
+                )
+                == 0
+            )
+        face_constraints.extend(
+            [
+                sum(
+                    coefficient * face_moments[label_indices[label]]
+                    for label, coefficient in target.items()
+                )
+                == 0,
+                sum(trace_terms) == 1,
+            ]
+        )
+        face_problem = cp.Problem(
+            cp.Minimize(cp.sum_squares(face_moments)),
+            face_constraints,
+        )
+        face_value = face_problem.solve(
+            solver="MOSEK",
+            verbose=args.verbose,
+            mosek_params={
+                "MSK_DPAR_INTPNT_CO_TOL_PFEAS": args.tolerance,
+                "MSK_DPAR_INTPNT_CO_TOL_DFEAS": args.tolerance,
+                "MSK_DPAR_INTPNT_CO_TOL_REL_GAP": args.tolerance,
+            },
+        )
+        moment_values = {}
+        block_ranks = {}
+        if face_moments.value is not None:
+            moment_values = {
+                str(label): float(face_moments.value[index])
+                for index, label in enumerate(ordered_labels)
+                if abs(face_moments.value[index]) > 1e-9
+            }
+            for name, _, label_matrices in blocks:
+                matrix = sum(
+                    face_moments.value[label_indices[label]]
+                    * coefficient_matrix
+                    for label, coefficient_matrix in label_matrices.items()
+                )
+                eigenvalues = np.linalg.eigvalsh(matrix)
+                block_ranks[name] = {
+                    "size": len(eigenvalues),
+                    "minimum_eigenvalue": float(eigenvalues[0]),
+                    "rank_at_1e-7": int(
+                        np.count_nonzero(eigenvalues > 1e-7)
+                    ),
+                }
+            if args.output:
+                np.savez(
+                    Path(args.output),
+                    moments=face_moments.value,
+                    labels=np.array(
+                        [repr(label) for label in ordered_labels],
+                        dtype=str,
+                    ),
+                )
+        return {
+            "status": face_problem.status,
+            "objective": (
+                None if face_value is None else float(face_value)
+            ),
+            "labels": len(ordered_labels),
+            "block_ranks": block_ranks,
+            "moments": {} if args.summary_only else moment_values,
+            "output": args.output,
         }
 
     if args.dual:
@@ -2166,59 +2758,138 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         label: index for index, label in enumerate(bounded_labels)
     }
 
-    for label in ordered_labels:
-        terms: list[cp.Expression] = []
-        equation_scale = abs(target.get(label, 0.0))
-        for _, variable, label_matrices in blocks:
-            matrix = label_matrices.get(label)
-            if matrix is not None:
-                terms.append(cp.sum(cp.multiply(matrix, variable)))
-                equation_scale = max(
-                    equation_scale,
-                    float(np.max(np.abs(matrix))),
-                )
-        for _, variable, label_matrices in free_blocks:
-            matrix = label_matrices.get(label)
-            if matrix is not None:
-                terms.append(cp.sum(cp.multiply(matrix, variable)))
-                equation_scale = max(
-                    equation_scale,
-                    float(np.max(np.abs(matrix))),
-                )
-        if gradient_coefficients is not None:
-            for index, (_, relation) in enumerate(gradient_relations):
-                coefficient = relation.get(label)
-                if coefficient is not None:
-                    terms.append(coefficient * gradient_coefficients[index])
-                    equation_scale = max(equation_scale, abs(coefficient))
-        if potential_coefficients is not None:
-            for index, (_, relation) in enumerate(potential_relations):
-                coefficient = relation.get(label)
-                if coefficient is not None:
-                    terms.append(coefficient * potential_coefficients[index])
-                    equation_scale = max(equation_scale, abs(coefficient))
-        # Rank-three Gram identities are unrestricted averaging-null terms.
-        if rank_coefficients is not None:
-            for index, (_, relation) in enumerate(rank_relations):
-                coefficient = relation.get(label)
-                if coefficient is not None:
-                    terms.append(coefficient * rank_coefficients[index])
-                    equation_scale = max(equation_scale, abs(coefficient))
-        if box_plus is not None and box_minus is not None:
-            if label == ("constant",):
-                terms.append(cp.sum(box_plus + box_minus))
-                equation_scale = max(equation_scale, 1.0)
-            else:
-                index = bounded_label_indices[label]
-                terms.append(box_plus[index] - box_minus[index])
-                equation_scale = max(equation_scale, 1.0)
-        if args.scale_constraints and equation_scale > 0:
-            constraints.append(
-                sum(terms) / equation_scale
-                == target.get(label, 0.0) / equation_scale
+    quotient_rows: list[dict[Label, Fraction]] | None = None
+    equality_generator_count = 0
+    equality_rank = 0
+    if args.eliminate_free:
+        if args.box_bounds:
+            raise ValueError(
+                "Exact equality elimination is incompatible with box bounds"
             )
-        else:
-            constraints.append(sum(terms) == target.get(label, 0.0))
+        quotient_rows, equality_generator_count, equality_rank = (
+            exact_equality_quotient_rows(
+                ordered_labels,
+                (
+                    label_matrices
+                    for _, _, label_matrices in free_blocks
+                ),
+                (
+                    relation
+                    for _, relation in (
+                        gradient_relations
+                        + potential_relations
+                        + rank_relations
+                    )
+                ),
+            )
+        )
+        for quotient_row in quotient_rows:
+            terms: list[cp.Expression] = []
+            projected_target = sum(
+                float(coefficient) * target.get(label, 0.0)
+                for label, coefficient in quotient_row.items()
+            )
+            equation_scale = abs(projected_target)
+            for _, variable, label_matrices in blocks:
+                projected_matrix: np.ndarray | None = None
+                for label, coefficient in quotient_row.items():
+                    matrix = label_matrices.get(label)
+                    if matrix is None:
+                        continue
+                    term = float(coefficient) * matrix
+                    projected_matrix = (
+                        term
+                        if projected_matrix is None
+                        else projected_matrix + term
+                    )
+                if projected_matrix is None:
+                    continue
+                matrix_scale = float(np.max(np.abs(projected_matrix)))
+                if matrix_scale <= 1e-13:
+                    continue
+                terms.append(
+                    cp.sum(cp.multiply(projected_matrix, variable))
+                )
+                equation_scale = max(equation_scale, matrix_scale)
+            if args.scale_constraints and equation_scale > 0:
+                constraints.append(
+                    sum(terms) / equation_scale
+                    == projected_target / equation_scale
+                )
+            else:
+                constraints.append(sum(terms) == projected_target)
+    else:
+        for label in ordered_labels:
+            terms = []
+            equation_scale = abs(target.get(label, 0.0))
+            for _, variable, label_matrices in blocks:
+                matrix = label_matrices.get(label)
+                if matrix is not None:
+                    terms.append(cp.sum(cp.multiply(matrix, variable)))
+                    equation_scale = max(
+                        equation_scale,
+                        float(np.max(np.abs(matrix))),
+                    )
+            for _, variable, label_matrices in free_blocks:
+                matrix = label_matrices.get(label)
+                if matrix is not None:
+                    terms.append(cp.sum(cp.multiply(matrix, variable)))
+                    equation_scale = max(
+                        equation_scale,
+                        float(np.max(np.abs(matrix))),
+                    )
+            if gradient_coefficients is not None:
+                for index, (_, relation) in enumerate(gradient_relations):
+                    coefficient = relation.get(label)
+                    if coefficient is not None:
+                        terms.append(
+                            coefficient * gradient_coefficients[index]
+                        )
+                        equation_scale = max(
+                            equation_scale,
+                            abs(coefficient),
+                        )
+            if potential_coefficients is not None:
+                for index, (_, relation) in enumerate(potential_relations):
+                    coefficient = relation.get(label)
+                    if coefficient is not None:
+                        terms.append(
+                            coefficient * potential_coefficients[index]
+                        )
+                        equation_scale = max(
+                            equation_scale,
+                            abs(coefficient),
+                        )
+            # Rank-three Gram identities are unrestricted averaging-null
+            # terms.
+            if rank_coefficients is not None:
+                for index, (_, relation) in enumerate(rank_relations):
+                    coefficient = relation.get(label)
+                    if coefficient is not None:
+                        terms.append(
+                            coefficient * rank_coefficients[index]
+                        )
+                        equation_scale = max(
+                            equation_scale,
+                            abs(coefficient),
+                        )
+            if box_plus is not None and box_minus is not None:
+                if label == ("constant",):
+                    terms.append(cp.sum(box_plus + box_minus))
+                    equation_scale = max(equation_scale, 1.0)
+                else:
+                    index = bounded_label_indices[label]
+                    terms.append(box_plus[index] - box_minus[index])
+                    equation_scale = max(equation_scale, 1.0)
+            if args.scale_constraints and equation_scale > 0:
+                constraints.append(
+                    sum(terms) / equation_scale
+                    == target.get(label, 0.0) / equation_scale
+                )
+            else:
+                constraints.append(
+                    sum(terms) == target.get(label, 0.0)
+                )
 
     objective_terms: list[cp.Expression] = [
         cp.trace(variable) for _, variable, _ in blocks
@@ -2268,6 +2939,14 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         "gradient_powers": [power for power, _ in gradient_relations],
         "potential_powers": [power for power, _ in potential_relations],
         "rank_relations": len(rank_relations),
+        "pole_equator_faces": pole_equator_faces,
+        "numerical_faces": [str(path) for path in numerical_face_paths],
+        "eliminate_free": args.eliminate_free,
+        "equality_generators": equality_generator_count,
+        "equality_rank": equality_rank,
+        "quotient_constraints": (
+            0 if quotient_rows is None else len(quotient_rows)
+        ),
         "box_bounds": args.box_bounds,
         "blocks": {},
     }
@@ -2362,11 +3041,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--dual", action="store_true")
+    parser.add_argument("--find-face", action="store_true")
     parser.add_argument("--box-bounds", action="store_true")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--scale-constraints", action="store_true")
     parser.add_argument("--check-onb", action="store_true")
     parser.add_argument("--facial-reduce-onb", action="store_true")
+    parser.add_argument("--exact-onb-face", action="store_true")
+    parser.add_argument(
+        "--pole-equator-faces",
+        help=(
+            "Comma-separated exact equality faces: continuous and/or "
+            "regular equator orders such as 4,5"
+        ),
+    )
+    parser.add_argument(
+        "--numerical-faces",
+        help="Comma-separated NPZ exposing directions from --find-face",
+    )
+    parser.add_argument("--face-threshold", type=float, default=1e-7)
+    parser.add_argument("--eliminate-free", action="store_true")
     return parser.parse_args()
 
 

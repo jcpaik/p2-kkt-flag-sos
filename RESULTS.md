@@ -144,6 +144,60 @@ reconstruction attempts failed on the singular ONB face, including after
 explicitly parametrizing every PSD matrix on its ONB nullspace.  No rational
 PSD matrices were recovered and no certificate archive is provided.
 
+## Exactification audit of the degree-14 five-point run
+
+The exactification path now performs three operations before calling MOSEK:
+
+1. reconstruct every ONB moment matrix and its kernel over \(\mathbb Q\);
+2. eliminate the unrestricted KKT and Gram-rank directions by rational RREF;
+3. intersect with the exact pole–equator equality functional.
+
+The pole–equator moments are evaluated as Fourier constant terms.  The
+corresponding rooted potential has the closed form
+
+```text
+U(z) = 4 q (1-q)^2,  q = (z.e)^2,
+```
+
+so this is a valid KKT equality face independently of the conjecture.
+
+For the stated degree/arity/root-factor parameters, the audit finds:
+
+```text
+formal labels                 574
+free equality generators       74
+exact equality rank            71
+quotient equations            503
+```
+
+After the ONB and pole–equator faces, the reduced primal still does not return
+a finite feasible point. At tolerance `1e-9`, MOSEK's trace-minimization
+iterates reached objective about `1.36e3` while the feasibility residual
+decreased toward `1e-9`; the solver terminated with status `UNKNOWN`.
+Without the pole–equator face the same trajectory occurs. An auxiliary
+zero-target dual face exposes further very small eigen-directions, but cutting
+them numerically makes the quotient inconsistent and therefore cannot be used
+as proof data.
+
+This is evidence of a non-attained/closure certificate, not an exact
+degree-14 certificate. It is not, by itself, a theorem that no alternative
+degree-14 representation exists; it does prove that the published
+floating-point dual vector is insufficient data for rationalization.
+
+The exact audit is reproduced by:
+
+```sh
+python3 sos_search.py \
+  --check-onb --facial-reduce-onb --exact-onb-face \
+  --pole-equator-faces continuous --eliminate-free \
+  --degree 14 --no-pointwise-sos \
+  --harmonics --three-point-flags --four-point-flags --two-root-flags \
+  --max-flag-arity 5 --max-root-factor-degree 2 \
+  --gradient --potential --potential-matrices \
+  --hessian --four-point-hessian \
+  --global-gap --global-tangent-gaps --rank-relations
+```
+
 The higher-arity search is reproduced by:
 
 ```sh

@@ -114,6 +114,21 @@ def test_isotropic_target_vanishes_on_onb():
     assert target == 0
 
 
+def test_pole_equator_equality_moments_are_exact():
+    for regular_order in (0, 4, 5):
+        p4 = search.pole_equator_label_value(
+            ("pair", 4),
+            regular_order,
+        )
+        p6 = search.pole_equator_label_value(
+            ("pair", 6),
+            regular_order,
+        )
+        assert p4 == Fraction(5, 18)
+        assert p6 == Fraction(1, 4)
+        assert 1 - 9 * p4 + 6 * p6 == 0
+
+
 def test_lifted_hessian_reproduces_four_point_block():
     parallel, perpendicular = search.four_point_hessian_polynomials()
     basis = [(1,), (3,)]
@@ -170,6 +185,15 @@ def test_five_point_root_weighted_flags_are_psd_on_onb():
             for label, matrix in label_matrices.items()
         )
         assert np.linalg.eigvalsh(moment_matrix)[0] >= -1e-12
+        exact_moment_matrix = search.exact_onb_moment_matrix(label_matrices)
+        exact_nullspace = search.exact_onb_nullspace(label_matrices)
+        assert (
+            exact_moment_matrix * exact_nullspace
+            == search.sp.zeros(
+                exact_moment_matrix.rows,
+                exact_nullspace.cols,
+            )
+        )
 
 
 def test_five_point_hessian_blocks_vanish_on_onb():
@@ -192,3 +216,22 @@ def test_five_point_hessian_blocks_vanish_on_onb():
                 for label, matrix in label_matrices.items()
             )
             assert np.max(np.abs(moment_matrix)) <= 1e-10
+
+
+def test_exact_equality_quotient_annihilates_free_generators():
+    constant = ("constant",)
+    first = ("pair", 4)
+    second = ("pair", 6)
+    quotient, generator_count, rank = search.exact_equality_quotient_rows(
+        [constant, first, second],
+        [{constant: np.array([[1.0]])}],
+        [{first: 1.0, second: 1.0}],
+    )
+    assert generator_count == 2
+    assert rank == 2
+    assert quotient == [
+        {
+            first: Fraction(-1),
+            second: Fraction(1),
+        }
+    ]

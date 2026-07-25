@@ -72,6 +72,31 @@ negative eigenvalues, and equality blocks must vanish.
 nullspace forced by equality at the ONB. This is valid only for the sharp
 target with `--target-epsilon 0`.
 
+`--exact-onb-face` reconstructs that nullspace over \(\mathbb Q\), avoiding a
+numerical eigenvalue cutoff.
+
+`--pole-equator-faces continuous` applies a second exact equality face. Its
+moment functional is computed by Fourier constant-term arithmetic. For the
+underlying measure,
+
+\[
+\mu=\frac13\delta_e+\frac23\nu_{e^\perp},
+\qquad
+U_\mu(z)=4q(1-q)^2,\quad q=(z\cdot e)^2,
+\]
+
+so the global KKT gap and its support Hessian are nonnegative without assuming
+the desired theorem.
+
+`--eliminate-free` forms the exact rational quotient by every unrestricted
+potential, gradient, and Gram-rank multiplier. For the degree-14, arity-5,
+root-factor-degree-2 model, 74 generated equality columns have rank 71 among
+574 labels, leaving 503 independent coefficient equations.
+
+`--find-face` and `--numerical-faces` are facial-reduction diagnostics. A
+numerically inferred face is never itself proof data; any certificate found
+with it would have to be embedded in the original basis and verified exactly.
+
 ## Constraint scaling
 
 `--scale-constraints` rescales mathematically equivalent constraints before

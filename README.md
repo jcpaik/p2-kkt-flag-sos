@@ -65,6 +65,15 @@ evidence for an exact zero bound, but floating-point output is not a proof.
 The primal PSD matrices have not been recovered in a form that can be checked
 over the rational numbers.
 
+An exactification audit now reconstructs the ONB face over
+\(\mathbb Q\), eliminates every unrestricted KKT/rank multiplier by rational
+row reduction, and intersects with the exact pole–equator equality face. The
+result has 503 independent coefficient equations. Its MOSEK primal iterates
+drive feasibility errors down only by sending the trace and coefficient norms
+to infinity. Thus the reported degree-14 solution cannot be rounded into a
+finite rational certificate. See [Numerical results](RESULTS.md) for the
+diagnostic data.
+
 There is a second important limitation: the present implementation uses the
 isotropy relation
 
