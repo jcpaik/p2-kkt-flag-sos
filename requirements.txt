@@ -1,0 +1,5 @@
+cvxpy>=1.8,<2
+mosek>=11.1,<12
+numpy>=2,<3
+pytest>=9,<10
+sympy>=1.14,<2

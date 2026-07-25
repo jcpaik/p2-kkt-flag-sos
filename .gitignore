@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+.venv/
+*.py[cod]
+*.npz
+.DS_Store
+
+# Local ChatGPT project context; not part of the public research repository.
+AGENTS.md
+sources/
