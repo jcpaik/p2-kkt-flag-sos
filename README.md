@@ -98,6 +98,9 @@ isotropy. This distinction is made precise in
   imply.
 - [Implementation guide](docs/IMPLEMENTATION.md) connects the mathematics to
   the Python code and command-line options.
+- [Degree-14 command reference](docs/DEGREE14_COMMAND_REFERENCE.md) derives
+  every flag, KKT kernel, rank identity, block size, and dual constraint used
+  by the strongest five-point command.
 - [Numerical results](RESULTS.md) records the hierarchy and solver outcomes.
 
 ## Installation
