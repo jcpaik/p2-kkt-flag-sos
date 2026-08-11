@@ -42,51 +42,49 @@ first-variation inequalities.
 
 ## Current status
 
-No exact certificate is claimed.
+No exact certificate is claimed, and copositivity is **not** proved.
 
-The strongest run currently uses degree \(14\), five-point root-weighted
-flags, and root-factor degree \(2\). In the isotropic normalization
+The implementation no longer assumes isotropy. The moment reducer keeps
+every antipodally even expectation as an independent label — in particular
+\(p_2=\iint(x\cdot y)^2\,d\mu\,d\mu\) is a genuine variable — and the target
+is the general normalization
 
 \[
-T(\mu)=1-9p_4+6p_6=\frac{3}{16}E_K(\mu),
+T(\mu)=-\frac14+\frac{15}{4}p_2-9p_4+6p_6=\frac{3}{16}E_K(\mu),
 \qquad
-p_j=\iint(x\cdot y)^j\,d\mu(x)d\mu(y),
+p_j=\iint(x\cdot y)^j\,d\mu(x)d\mu(y).
 \]
 
-MOSEK reports
+The isotropy deficit is subsumed into the flag decomposition through
+harmonic squares: the scalar block \(h_2=\tfrac{3p_2-1}{2}
+=\sum_m|\hat\mu_{2m}|^2\ge0\) and a spin-2 Gram block containing the
+deviatoric second moment \(D=\int xx^T d\mu-\tfrac13I\) paired against
+multi-leaf spin-2 flags, so that \(h_2\to0\) forces the classical
+contraction identities row-by-row.
+
+With this general hierarchy, the strongest stable configuration (degree
+\(14\), five-point root-weighted flags, matrix rank identities, spin-2
+blocks) yields
 
 \[
-T\ge -4.778814766126516\times10^{-8}.
+T\ \ge\ -8.95\times10^{-4},
 \]
 
-The maximum equality residual is \(2.66\times10^{-9}\), and the worst
-moment-matrix eigenvalue is \(-9.89\times10^{-10}\). These numbers are strong
-evidence for an exact zero bound, but floating-point output is not a proof.
-The primal PSD matrices have not been recovered in a form that can be checked
-over the rational numbers.
+and every degree-14 variant lands in the band
+\(-(8.4\text{–}9.4)\times10^{-4}\). Degree-16/18 runs exceed MOSEK's
+numerical range for this formulation. The isotropic-branch near-certificate
+\(T\gtrsim-4.8\times10^{-8}\) therefore does **not** survive the removal of
+the isotropy assumption at the same degree and arity.
 
-An exactification audit now reconstructs the ONB face over
-\(\mathbb Q\), eliminates every unrestricted KKT/rank multiplier by rational
-row reduction, and intersects with the exact pole–equator equality face. The
-result has 503 independent coefficient equations. Its MOSEK primal iterates
-drive feasibility errors down only by sending the trace and coefficient norms
-to infinity. Thus the reported degree-14 solution cannot be rounded into a
-finite rational certificate. See [Numerical results](RESULTS.md) for the
-diagnostic data.
-
-There is a second important limitation: the present implementation uses the
-isotropy relation
-
-\[
-\int xx^T\,d\mu(x)=\frac13I.
-\]
-
-Therefore, exactifying the current certificate would prove the residual
-**isotropic KKT case**. To deduce unrestricted copositivity, one must
-additionally prove that a hypothetical negative global minimizer can be taken
-isotropic, or extend the certificate algebra so that it does not assume
-isotropy. This distinction is made precise in
-[Certificate theorem](docs/CERTIFICATE_THEOREM.md).
+The moment diagnostics identify the mechanism: the optimal pseudo-moment
+pays a small positive harmonic energy \(h_2\approx3.3\times10^{-3}\) and
+buys contraction violations of order \(\sqrt{h_2}\), which any convex
+spin-2 Gram relaxation permits by Cauchy–Schwarz. Real measures forbid this
+because all spin-2 correlation vectors lie in a fixed five-dimensional
+space (a non-convex rank constraint). Closing the gap at finite degree
+would require certificate multipliers that annihilate every spin-2 residual
+direction at the minimizing face — an open structural question. See
+[Numerical results](RESULTS.md) for the full record.
 
 ## Start here
 
@@ -123,24 +121,25 @@ Run the tests:
 python -m pytest -q
 ```
 
-Reproduce the strongest dual run:
+Reproduce the strongest (non-isotropic) dual run:
 
 ```sh
 python sos_search.py \
   --dual --summary-only --scale-constraints --rank-relations \
+  --higher-rank-matrices \
   --degree 14 --no-pointwise-sos \
   --harmonics --three-point-flags --four-point-flags --two-root-flags \
   --max-flag-arity 5 --max-root-factor-degree 2 \
   --gradient --potential --potential-matrices \
   --hessian --four-point-hessian \
   --global-gap --global-tangent-gaps \
-  --tolerance 1e-10
+  --tolerance 1e-9
 ```
 
 Expected objective:
 
 ```text
--4.778814766126516e-08
+-8.95273270049346e-04
 ```
 
 Small changes in solver version, scaling, or tolerances can change the last

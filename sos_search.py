@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""MOSEK search for isotropic KKT-infused flag/SOS certificates.
+"""MOSEK search for KKT-infused flag/SOS certificates.
 
-Independent samples from an antipodally symmetric isotropic measure on S^2
-are represented by multigraph monomials in their pairwise Gram entries.  A
-degree-two sampled vertex is contracted using E[XX^T] = I/3; every remaining
-expectation is retained as an independent canonical moment label.  The code
-therefore makes no unrecorded moment-closure assumption.
+Independent samples from an antipodally symmetric measure on S^2 are
+represented by multigraph monomials in their pairwise Gram entries.  No
+isotropy assumption is made: every expectation with even vertex degrees is
+retained as an independent canonical moment label, including second-moment
+quantities such as E[(X.Y)^2].  The deficit from isotropy is expressed inside
+the hierarchy by the degree-two harmonic flag square E[P_2(X.Y)] >= 0.  The
+code therefore makes no unrecorded moment-closure assumption.
 
 The hierarchy combines ordinary rooted flag squares of several arities with
 the measure KKT conditions: global potential gaps, support stationarity, and
@@ -54,18 +56,16 @@ def monomials(max_degree: int) -> list[Exponent]:
 def pair_label(power: int, factor: Fraction = Fraction(1)) -> tuple[Label, Fraction]:
     if power == 0:
         return ("constant",), factor
-    if power == 2:
-        return ("constant",), factor / 3
     return ("pair", power), factor
 
 
 def expectation_label(exponent: Exponent) -> tuple[Label | None, Fraction]:
-    """Reduce one triangle monomial using antipodality and isotropy.
+    """Reduce one triangle monomial using antipodality alone.
 
     The degree at X, Y, Z is respectively i+k, i+j, j+k.  Odd vertex degree
-    has zero expectation.  Vertex degree zero reduces to a pair moment, while
-    vertex degree two can be integrated using E[XX^T] = I/3.  Remaining
-    triangle moments are retained as independent labels, modulo S_3 symmetry.
+    has zero expectation.  Vertex degree zero reduces to a pair moment.  All
+    remaining triangle moments are retained as independent labels, modulo
+    S_3 symmetry.  No isotropy contraction is applied.
     """
 
     i, j, k = exponent
@@ -79,16 +79,6 @@ def expectation_label(exponent: Exponent) -> tuple[Label | None, Fraction]:
         return pair_label(k)
     if j + k == 0:
         return pair_label(i)
-
-    if i + k == 2:
-        power = j + 1 if (i, k) == (1, 1) else j
-        return pair_label(power, Fraction(1, 3))
-    if i + j == 2:
-        power = k + 1 if (i, j) == (1, 1) else k
-        return pair_label(power, Fraction(1, 3))
-    if j + k == 2:
-        power = i + 1 if (j, k) == (1, 1) else i
-        return pair_label(power, Fraction(1, 3))
 
     return ("triangle",) + tuple(sorted(exponent)), Fraction(1)
 
@@ -525,7 +515,11 @@ def exact_equality_quotient_rows(
 
 
 def reduce_graph_matrix(matrix: list[list[int]]) -> tuple[Label | None, Fraction]:
-    """Evaluate all consequences of antipodality and E[XX^T]=I/3."""
+    """Evaluate all consequences of antipodality for a graph moment.
+
+    Second moments are NOT contracted: a degree-two sampled vertex is kept in
+    the canonical label, so no isotropy assumption enters the reduction.
+    """
 
     if not matrix:
         return ("constant",), Fraction(1)
@@ -553,34 +547,6 @@ def reduce_graph_matrix(matrix: list[list[int]]) -> tuple[Label | None, Fraction
             labels.append(label)
             coefficient *= component_coefficient
         return combine_component_labels(labels), coefficient
-
-    degree_two_vertices = [
-        vertex for vertex, degree in enumerate(degrees) if degree == 2
-    ]
-    if degree_two_vertices:
-        vertex = degree_two_vertices[0]
-        incident = [
-            (other, exponent)
-            for other, exponent in enumerate(matrix[vertex])
-            if exponent
-        ]
-        retained = [other for other in range(len(matrix)) if other != vertex]
-        reduced = induced_matrix(matrix, retained)
-        old_to_new = {
-            old: new for new, old in enumerate(retained)
-        }
-        if len(incident) == 2:
-            (left, left_exponent), (right, right_exponent) = incident
-            if left_exponent != 1 or right_exponent != 1:
-                raise ValueError("Unexpected degree-two contraction")
-            reduced_left = old_to_new[left]
-            reduced_right = old_to_new[right]
-            reduced[reduced_left][reduced_right] += 1
-            reduced[reduced_right][reduced_left] += 1
-        elif len(incident) != 1 or incident[0][1] != 2:
-            raise ValueError("Unexpected degree-two contraction")
-        label, coefficient = reduce_graph_matrix(reduced)
-        return label, coefficient / 3
 
     return canonical_connected_label(matrix), Fraction(1)
 
@@ -985,6 +951,214 @@ def empty_type_flag_expectation_matrix(
     return matrices
 
 
+def harmonic_flag_expectation_matrix(
+    order: int,
+    weight_degrees: list[int],
+) -> dict[Label, np.ndarray]:
+    """Spin-``order`` Gram block of harmonic-weighted unrooted pair flags.
+
+    For v_a = int int Y_{lm}(x) (x.y)^a dmu(x) dmu(y), summing the Gram
+    matrix over m gives
+
+        G_ab = E[P_l(X.Z) (X.Y)^a (Z.W)^b] >= 0 (as a matrix),
+
+    a four-point unrooted flag square.  For l = 2 this block carries the
+    deviatoric second-moment correlations that an isotropy assumption would
+    otherwise fix, so it subsumes the isotropy reduction into the flag
+    decomposition.
+    """
+
+    variable = sp.symbols("t")
+    legendre_terms = [
+        (Fraction(int(coefficient.p), int(coefficient.q)), int(power))
+        for (power,), coefficient in sp.Poly(
+            sp.legendre(order, variable),
+            variable,
+        ).terms()
+    ]
+    size = len(weight_degrees)
+    matrices: dict[Label, np.ndarray] = {}
+    # Vertices: 0 = X, 1 = Z, 2 = Y, 3 = W.  Edges in graph_edges(4) order:
+    # (0,1), (0,2), (0,3), (1,2), (1,3), (2,3).
+    for row, left_degree in enumerate(weight_degrees):
+        for column, right_degree in enumerate(weight_degrees):
+            for coefficient, power in legendre_terms:
+                label, reduction_coefficient = graph_expectation_label(
+                    4,
+                    (power, left_degree, 0, 0, right_degree, 0),
+                )
+                if label is None or reduction_coefficient == 0:
+                    continue
+                matrix = matrices.setdefault(label, np.zeros((size, size)))
+                matrix[row, column] += float(
+                    coefficient * reduction_coefficient
+                )
+    return {
+        label: matrix
+        for label, matrix in matrices.items()
+        if np.max(np.abs(matrix)) > 1e-13
+    }
+
+
+def spin2_flag_basis(
+    maximum_flag_degree: int,
+) -> list[tuple[tuple[int, ...], int]]:
+    """Unrooted spin-2 flags: a harmonic vertex with up to two leaves.
+
+    A flag ``((a_1, ..., a_k), b)`` denotes
+
+        v_m = int Y_2m(x) prod_i (x.y_i)^{a_i} (y_1.y_2)^b dmu^{1+k},
+
+    with ``b = 0`` unless ``k = 2``.  Antipodal parity requires every leaf
+    degree ``a_i + b`` to be even and ``sum a_i`` to be even.  The empty flag
+    is the deviatoric second moment D itself, whose squared norm is a
+    positive multiple of the harmonic energy h_2.
+    """
+
+    flags: list[tuple[tuple[int, ...], int]] = [((), 0)]
+    for a in range(2, maximum_flag_degree + 1, 2):
+        flags.append(((a,), 0))
+    for a1 in range(1, maximum_flag_degree + 1):
+        for a2 in range(a1, maximum_flag_degree + 1):
+            if (a1 + a2) % 2:
+                continue
+            for b in range(maximum_flag_degree + 1):
+                if (a1 + b) % 2 or (a2 + b) % 2:
+                    continue
+                if a1 + a2 + b > maximum_flag_degree:
+                    continue
+                flags.append(((a1, a2), b))
+    return flags
+
+
+def spin2_flag_expectation_matrix(
+    flag_basis: list[tuple[tuple[int, ...], int]],
+) -> dict[Label, np.ndarray]:
+    """Gram block of unrooted spin-2 flags.
+
+    Summing v_m(A) conj(v_m(B)) over m gives (up to a positive constant)
+
+        G_AB = E[P_2(X.X') flag_A(X;Y) flag_B(X';Y')],
+
+    a fully unrooted flag square on independent samples.  At a feasible
+    point with h_2 = 0 positive semidefiniteness forces the entire D-row to
+    vanish, which restores every isotropic contraction identity whose
+    residual flag lies in the basis.  This subsumes the isotropy reduction
+    into the flag decomposition.
+    """
+
+    legendre_terms = [
+        (Fraction(3, 2), 2),
+        (Fraction(-1, 2), 0),
+    ]
+    size = len(flag_basis)
+    matrices: dict[Label, np.ndarray] = {}
+    for row, (left_leaves, left_pair) in enumerate(flag_basis):
+        for column, (right_leaves, right_pair) in enumerate(flag_basis):
+            left_count = len(left_leaves)
+            right_count = len(right_leaves)
+            vertex_count = 2 + left_count + right_count
+            left_root = 0
+            right_root = 1
+            left_offset = 2
+            right_offset = 2 + left_count
+            edge_indices = {
+                edge: index
+                for index, edge in enumerate(graph_edges(vertex_count))
+            }
+            base = [0] * len(edge_indices)
+            for index, power in enumerate(left_leaves):
+                base[edge_indices[(left_root, left_offset + index)]] += power
+            if left_pair:
+                base[
+                    edge_indices[(left_offset, left_offset + 1)]
+                ] += left_pair
+            for index, power in enumerate(right_leaves):
+                base[
+                    edge_indices[(right_root, right_offset + index)]
+                ] += power
+            if right_pair:
+                base[
+                    edge_indices[(right_offset, right_offset + 1)]
+                ] += right_pair
+            for coefficient, power in legendre_terms:
+                exponent = list(base)
+                exponent[edge_indices[(left_root, right_root)]] += power
+                label, reduction_coefficient = graph_expectation_label(
+                    vertex_count,
+                    tuple(exponent),
+                )
+                if label is None or reduction_coefficient == 0:
+                    continue
+                matrix = matrices.setdefault(label, np.zeros((size, size)))
+                matrix[row, column] += float(
+                    coefficient * reduction_coefficient
+                )
+    return {
+        label: matrix
+        for label, matrix in matrices.items()
+        if np.max(np.abs(matrix)) > 1e-13
+    }
+
+
+def h2_localized_flag_expectation_matrix(
+    leaf_degrees: list[int],
+    tangent_harmonic: Polynomial,
+) -> dict[Label, np.ndarray]:
+    """One-root flag Gram block localized by the harmonic energy h_2.
+
+    Multiplying a conditional flag square by the nonnegative moment
+    quantity h_2 = E[P_2(W.W')] over two fresh independent samples yields
+
+        h_2 * E[flag square] = E[P_2(W.W') flag(X;Y,Z)^2] >= 0,
+
+    a five-vertex block whose entries are product labels coupling the
+    spin-2 deficit to three-point flag moments.  These are the
+    second-order h_2 couplings exploited by the sqrt(h_2) pseudo-moment
+    leak, so this localization is the direct certificate-side response.
+    """
+
+    legendre_terms = [
+        (Fraction(3, 2), 2),
+        (Fraction(-1, 2), 0),
+    ]
+    edge_indices = {
+        edge: index for index, edge in enumerate(graph_edges(5))
+    }
+    size = len(leaf_degrees)
+    matrices: dict[Label, np.ndarray] = {}
+    for row, left_degree in enumerate(leaf_degrees):
+        for column, right_degree in enumerate(leaf_degrees):
+            for coefficient, (i, j, k) in tangent_harmonic:
+                shifted = (i + left_degree, j, k + right_degree)
+                for legendre_coefficient, legendre_power in legendre_terms:
+                    exponent = [0] * len(edge_indices)
+                    exponent[edge_indices[(0, 1)]] = shifted[0]
+                    exponent[edge_indices[(1, 2)]] = shifted[1]
+                    exponent[edge_indices[(0, 2)]] = shifted[2]
+                    exponent[edge_indices[(3, 4)]] = legendre_power
+                    label, reduction_coefficient = graph_expectation_label(
+                        5,
+                        tuple(exponent),
+                    )
+                    if label is None or reduction_coefficient == 0:
+                        continue
+                    matrix = matrices.setdefault(
+                        label,
+                        np.zeros((size, size)),
+                    )
+                    matrix[row, column] += float(
+                        coefficient
+                        * legendre_coefficient
+                        * reduction_coefficient
+                    )
+    return {
+        label: matrix
+        for label, matrix in matrices.items()
+        if np.max(np.abs(matrix)) > 1e-13
+    }
+
+
 def harmonic_pair_vector(degree: int) -> dict[Label, np.ndarray]:
     variable = sp.symbols("t")
     polynomial = sp.Poly(sp.legendre(degree, variable), variable)
@@ -1016,8 +1190,9 @@ def potential_flag_relation_matrix(
         (Fraction(-48), 4),
         (Fraction(32), 6),
     ]
-    isotropic_energy_terms = [
-        (Fraction(16, 3), ("constant",)),
+    energy_terms = [
+        (Fraction(-4, 3), ("constant",)),
+        (Fraction(20), ("pair", 2)),
         (Fraction(-48), ("pair", 4)),
         (Fraction(32), ("pair", 6)),
     ]
@@ -1067,7 +1242,7 @@ def potential_flag_relation_matrix(
                         flag_coefficient * reduction_coefficient
                     )
             for flag_label, flag_coefficient in flag_vector.items():
-                for energy_coefficient, energy_label in isotropic_energy_terms:
+                for energy_coefficient, energy_label in energy_terms:
                     add_entry(
                         multiply_labels(energy_label, flag_label),
                         row,
@@ -1574,9 +1749,325 @@ def make_psd_block(
     return variable, expectation_matrix(basis, multiplier)
 
 
+def fraction_decimal(value: Fraction, digits: int) -> str:
+    """Decimal string of a rational with the requested significant digits."""
+
+    import decimal
+
+    with decimal.localcontext() as context:
+        context.prec = digits
+        quotient = (
+            decimal.Decimal(value.numerator)
+            / decimal.Decimal(value.denominator)
+        )
+        return format(quotient, "E")
+
+
+def export_sdpa_problem(
+    path: Path,
+    digits: int,
+    target: dict[Label, float],
+    ordered_labels: list[Label],
+    psd_blocks: list[tuple[str, dict[Label, np.ndarray]]],
+    free_label_matrices: list[dict[Label, np.ndarray]],
+    relations: list[dict[Label, float]],
+) -> dict[str, object]:
+    """Write the dual moment problem in exact SDPA sparse format.
+
+    Every equality constraint (KKT relations, rank relations, free matrix
+    blocks) is eliminated over the rationals: the moment vector is
+    parameterized as y = y0 + sum_j z_j p_j with y0, p_j exact, y0 the
+    normalized solution of y_constant = 1, and p_j spanning the equality
+    kernel with vanishing constant coordinate.  The exported problem
+
+        minimize  sum_j c_j z_j  subject to  M0 + sum_j z_j M_j >= 0
+
+    is a pure semidefinite program in free variables, so an interior
+    exists whenever the original relaxation has one.  All data are written
+    as exact decimals so an extended-precision solver is not contaminated
+    by binary64 rounding.  The reported bound is objValue + objective_shift.
+    """
+
+    constant = ("constant",)
+    quotient_rows, generator_count, equality_rank = (
+        exact_equality_quotient_rows(
+            ordered_labels,
+            free_label_matrices,
+            relations,
+        )
+    )
+
+    pivot_index = next(
+        (
+            index
+            for index, row in enumerate(quotient_rows)
+            if row.get(constant)
+        ),
+        None,
+    )
+    if pivot_index is None:
+        raise ValueError("Equality kernel forces the constant moment to 0")
+    pivot_row = quotient_rows[pivot_index]
+    pivot_value = pivot_row[constant]
+    base_point = {
+        label: coefficient / pivot_value
+        for label, coefficient in pivot_row.items()
+    }
+    directions: list[dict[Label, Fraction]] = []
+    for index, row in enumerate(quotient_rows):
+        if index == pivot_index:
+            continue
+        weight = row.get(constant, Fraction(0)) / pivot_value
+        direction = dict(row)
+        if weight:
+            for label, coefficient in pivot_row.items():
+                updated = (
+                    direction.get(label, Fraction(0)) - weight * coefficient
+                )
+                if updated:
+                    direction[label] = updated
+                else:
+                    direction.pop(label, None)
+        if direction:
+            directions.append(direction)
+
+    rational_target = {
+        label: rationalize_float(float(coefficient))
+        for label, coefficient in target.items()
+    }
+
+    def pair_with_target(vector: dict[Label, Fraction]) -> Fraction:
+        return sum(
+            (
+                coefficient * rational_target[label]
+                for label, coefficient in vector.items()
+                if label in rational_target
+            ),
+            Fraction(0),
+        )
+
+    objective_shift = pair_with_target(base_point)
+    objective = [pair_with_target(direction) for direction in directions]
+
+    # Sparse exact block data: for each block, label -> upper-tri entries.
+    sparse_blocks: list[dict[Label, list[tuple[int, int, Fraction]]]] = []
+    block_sizes: list[int] = []
+    for _, label_matrices in psd_blocks:
+        size = next(iter(label_matrices.values())).shape[0]
+        block_sizes.append(size)
+        sparse: dict[Label, list[tuple[int, int, Fraction]]] = {}
+        for label, matrix in label_matrices.items():
+            entries = []
+            for row in range(size):
+                for column in range(row, size):
+                    value = 0.5 * (
+                        matrix[row, column] + matrix[column, row]
+                    )
+                    if abs(value) > 1e-13:
+                        entries.append(
+                            (row, column, rationalize_float(float(value)))
+                        )
+            if entries:
+                sparse[label] = entries
+        sparse_blocks.append(sparse)
+
+    def assemble(
+        vector: dict[Label, Fraction],
+    ) -> list[dict[tuple[int, int], Fraction]]:
+        matrices: list[dict[tuple[int, int], Fraction]] = []
+        for sparse in sparse_blocks:
+            matrix: dict[tuple[int, int], Fraction] = {}
+            for label, coefficient in vector.items():
+                for row, column, value in sparse.get(label, ()):
+                    updated = (
+                        matrix.get((row, column), Fraction(0))
+                        + coefficient * value
+                    )
+                    if updated:
+                        matrix[(row, column)] = updated
+                    else:
+                        matrix.pop((row, column), None)
+            matrices.append(matrix)
+        return matrices
+
+    # SDPA requires linearly independent constraint matrices.  Directions
+    # supported on labels absent from every PSD block have zero image, and
+    # further image-space dependencies are possible; select an image basis
+    # by pivoted Cholesky on the Gram matrix of the flattened images.
+    direction_images = [assemble(direction) for direction in directions]
+
+    def flatten(
+        matrices: list[dict[tuple[int, int], Fraction]],
+    ) -> dict[tuple[int, int, int], Fraction]:
+        flat: dict[tuple[int, int, int], Fraction] = {}
+        for block_index, matrix in enumerate(matrices):
+            for (row, column), value in matrix.items():
+                flat[(block_index, row, column)] = value
+        return flat
+
+    flattened = [flatten(matrices) for matrices in direction_images]
+    count = len(flattened)
+
+    # Exact sparse Gaussian elimination over Q selects a maximal subset of
+    # directions with linearly independent images.  Float rank decisions
+    # are unusable here: dropping a nearly-parallel but independent
+    # direction perturbs the feasible set, which the extended-precision
+    # solver then correctly reports as infeasible.
+    echelon: dict[tuple[int, int, int], dict[tuple[int, int, int], Fraction]]
+    echelon = {}
+    selected: list[int] = []
+    for index in range(count):
+        vector = dict(flattened[index])
+        while vector:
+            pivot_coordinate = min(
+                vector,
+                key=lambda coordinate: (
+                    coordinate not in echelon,
+                    coordinate,
+                ),
+            )
+            row = echelon.get(pivot_coordinate)
+            if row is None:
+                pivot_value = vector[pivot_coordinate]
+                echelon[pivot_coordinate] = {
+                    coordinate: value / pivot_value
+                    for coordinate, value in vector.items()
+                }
+                selected.append(index)
+                break
+            factor = vector[pivot_coordinate]
+            for coordinate, value in row.items():
+                updated = (
+                    vector.get(coordinate, Fraction(0)) - factor * value
+                )
+                if updated:
+                    vector[coordinate] = updated
+                else:
+                    vector.pop(coordinate, None)
+    selected.sort()
+    dropped = count - len(selected)
+
+    # Normalize each kept direction exactly so the exported variables are
+    # O(1): divide by the largest absolute image coefficient.
+    normalizers: dict[int, Fraction] = {}
+    for index in selected:
+        largest = max(
+            (
+                abs(value)
+                for matrix in direction_images[index]
+                for value in matrix.values()
+            ),
+            default=Fraction(0),
+        )
+        normalizer = largest if largest else Fraction(1)
+        normalizers[index] = normalizer
+        direction_images[index] = [
+            {
+                coordinates: value / normalizer
+                for coordinates, value in matrix.items()
+            }
+            for matrix in direction_images[index]
+        ]
+        objective[index] = objective[index] / normalizer
+
+    variable_count = len(selected)
+    lines: list[str] = [
+        f"{variable_count} = mDIM",
+        f"{len(block_sizes)} = nBLOCK",
+        "(" + ", ".join(str(size) for size in block_sizes) + ") = bLOCKsTRUCT",
+    ]
+    lines.append(
+        "{"
+        + ", ".join(
+            fraction_decimal(objective[index], digits)
+            for index in selected
+        )
+        + "}"
+    )
+    entry_count = 0
+    # F_0 = -M0 so that sum_j z_j M_j - F_0 = M0 + sum_j z_j M_j.
+    for block_index, matrix in enumerate(assemble(base_point)):
+        for (row, column), value in sorted(matrix.items()):
+            lines.append(
+                f"0 {block_index + 1} {row + 1} {column + 1} "
+                f"{fraction_decimal(-value, digits)}"
+            )
+            entry_count += 1
+    for variable_index, direction_index in enumerate(selected):
+        for block_index, matrix in enumerate(
+            direction_images[direction_index]
+        ):
+            for (row, column), value in sorted(matrix.items()):
+                lines.append(
+                    f"{variable_index + 1} {block_index + 1} "
+                    f"{row + 1} {column + 1} "
+                    f"{fraction_decimal(value, digits)}"
+                )
+                entry_count += 1
+    path.write_text("\n".join(lines) + "\n")
+
+    # Sidecar map for solution extraction: reconstruct the moment vector
+    # y = y0 + sum_j z_j q_j / N_j from the solver's x, and identify the
+    # certificate blocks (SDPA's dual yMat) with the named flag blocks.
+    map_path = path.with_name(path.name + ".map.json")
+    map_path.write_text(
+        json.dumps(
+            {
+                "blocks": [
+                    {"name": name, "size": size}
+                    for (name, _), size in zip(
+                        psd_blocks,
+                        block_sizes,
+                        strict=True,
+                    )
+                ],
+                "objective_shift": str(objective_shift),
+                "objective": [
+                    str(objective[index]) for index in selected
+                ],
+                "base_point": {
+                    str(label): str(value)
+                    for label, value in base_point.items()
+                },
+                "directions": [
+                    {
+                        "normalizer": str(normalizers[index]),
+                        "coefficients": {
+                            str(label): str(value)
+                            for label, value in directions[index].items()
+                        },
+                    }
+                    for index in selected
+                ],
+            }
+        )
+    )
+
+    return {
+        "export": str(path),
+        "map": str(map_path),
+        "variables": variable_count,
+        "dropped_dependent_directions": dropped,
+        "labels": len(ordered_labels),
+        "equality_generators": generator_count,
+        "equality_rank": equality_rank,
+        "block_sizes": {
+            name: size
+            for (name, _), size in zip(psd_blocks, block_sizes, strict=True)
+        },
+        "entries": entry_count,
+        "objective_shift": float(objective_shift),
+        "objective_shift_exact": str(objective_shift),
+        "note": "bound = objValPrimal + objective_shift",
+    }
+
+
 def solve(args: argparse.Namespace) -> dict[str, object]:
+    # T = (3/16) E = -1/4 + (15/4) p2 - 9 p4 + 6 p6, with no isotropy
+    # substitution: p2 = E[(X.Y)^2] stays a genuine moment variable.
     target = {
-        ("constant",): 1.0 + args.target_epsilon,
+        ("constant",): -0.25 + args.target_epsilon,
+        ("pair", 2): 3.75,
         ("pair", 4): -9.0,
         ("pair", 6): 6.0,
     }
@@ -1634,6 +2125,31 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                     flag_expectation_matrix(leaf_degrees, tangent_harmonic),
                 )
             )
+            constraints.append(variable >> 0)
+
+    if args.h2_localized_flags:
+        localized_harmonics = tangent_harmonic_polynomials(
+            max(0, (args.degree - 2) // 2)
+        )
+        for order, tangent_harmonic in enumerate(localized_harmonics):
+            maximum_leaf_degree = (args.degree - 2 - 2 * order) // 2
+            leaf_degrees = list(
+                range(order % 2, maximum_leaf_degree + 1, 2)
+            )
+            if not leaf_degrees:
+                continue
+            label_matrices = h2_localized_flag_expectation_matrix(
+                leaf_degrees,
+                tangent_harmonic,
+            )
+            if not label_matrices:
+                continue
+            variable = cp.Variable(
+                (len(leaf_degrees), len(leaf_degrees)),
+                symmetric=True,
+                name=f"h2_flag_{order}",
+            )
+            blocks.append((f"h2_flag_{order}", variable, label_matrices))
             constraints.append(variable >> 0)
 
     if args.four_point_flags:
@@ -1893,7 +2409,9 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                     )
 
     if args.harmonics:
-        for degree in range(4, args.degree + 1, 2):
+        # Degree 2 encodes the isotropy deficit as a flag square:
+        # E[P_2(X.Y)] = (3 p2 - 1)/2 = sum_m |mu-hat(2,m)|^2 >= 0.
+        for degree in range(2, args.degree + 1, 2):
             variable = cp.Variable(
                 (1, 1),
                 symmetric=True,
@@ -1908,6 +2426,48 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             )
             constraints.append(variable >> 0)
 
+        # Rich spin-2 Gram block: harmonic vertex with up to two leaves.
+        # Contains D itself, so h_2 -> 0 forces the contraction identities.
+        spin2_degree = (args.degree - 2) // 2
+        spin2_basis = spin2_flag_basis(spin2_degree)
+        spin2_matrices = spin2_flag_expectation_matrix(spin2_basis)
+        if spin2_matrices:
+            variable = cp.Variable(
+                (len(spin2_basis), len(spin2_basis)),
+                symmetric=True,
+                name="spin2_flag",
+            )
+            blocks.append(("spin2_flag", variable, spin2_matrices))
+            constraints.append(variable >> 0)
+
+        # Spin-l Gram blocks of harmonic-weighted unrooted pair flags.
+        # The l = 2 block replaces the dropped isotropy contraction by
+        # genuine flag squares of the deviatoric second-moment tensor.
+        for order in range(2, args.degree + 1, 2):
+            maximum_weight_degree = (args.degree - order) // 2
+            weight_degrees = list(range(0, maximum_weight_degree + 1, 2))
+            if len(weight_degrees) < 2:
+                continue
+            label_matrices = harmonic_flag_expectation_matrix(
+                order,
+                weight_degrees,
+            )
+            if not label_matrices:
+                continue
+            variable = cp.Variable(
+                (len(weight_degrees), len(weight_degrees)),
+                symmetric=True,
+                name=f"harmonic_flag_{order}",
+            )
+            blocks.append(
+                (
+                    f"harmonic_flag_{order}",
+                    variable,
+                    label_matrices,
+                )
+            )
+            constraints.append(variable >> 0)
+
     if args.global_gap:
         variable = cp.Variable((1, 1), symmetric=True, name="global_uniform_gap")
         blocks.append(
@@ -1915,7 +2475,9 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 "global_uniform_gap",
                 variable,
                 {
-                    ("constant",): np.array([[-176.0 / 35.0]]),
+                    # int U dsigma - E = 172/105 - 20 p2 + 48 p4 - 32 p6
+                    ("constant",): np.array([[172.0 / 105.0]]),
+                    ("pair", 2): np.array([[-20.0]]),
                     ("pair", 4): np.array([[48.0]]),
                     ("pair", 6): np.array([[-32.0]]),
                 },
@@ -2121,6 +2683,47 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                         )
                         constraints.append(variable >> 0)
 
+    if args.jacobi_scale_blocks:
+        # Exact congruence rescaling A_L -> D A_L D with diagonal D chosen
+        # from the largest diagonal coefficient per basis element.  This
+        # preserves positive semidefiniteness and every certificate
+        # identity (the PSD variable absorbs D^{-1} on both sides) while
+        # compressing the coefficient range MOSEK must handle.
+        def jacobi_rescale(
+            label_matrices: dict[Label, np.ndarray],
+        ) -> dict[Label, np.ndarray]:
+            size = next(iter(label_matrices.values())).shape[0]
+            diagonal_scale = np.ones(size)
+            for index in range(size):
+                largest = max(
+                    float(
+                        max(
+                            np.max(np.abs(matrix[index, :])),
+                            np.max(np.abs(matrix[:, index])),
+                        )
+                    )
+                    for matrix in label_matrices.values()
+                )
+                if largest > 0:
+                    diagonal_scale[index] = 1.0 / math.sqrt(largest)
+            return {
+                label: diagonal_scale[:, None]
+                * matrix
+                * diagonal_scale[None, :]
+                for label, matrix in label_matrices.items()
+            }
+
+        blocks = [
+            (name, variable, jacobi_rescale(label_matrices))
+            for name, variable, label_matrices in blocks
+            if label_matrices
+        ]
+        free_blocks = [
+            (name, variable, jacobi_rescale(label_matrices))
+            for name, variable, label_matrices in free_blocks
+            if label_matrices
+        ]
+
     gradient_relations: list[tuple[int, dict[Label, float]]] = []
     if args.gradient:
         for power in range(max(0, args.degree - 7) + 1):
@@ -2173,6 +2776,33 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         labels.update(relation)
 
     ordered_labels = sorted(labels, key=str)
+
+    if args.export_sdpa:
+        if args.jacobi_scale_blocks:
+            raise ValueError(
+                "--export-sdpa needs unscaled rational blocks"
+            )
+        return export_sdpa_problem(
+            Path(args.export_sdpa),
+            args.sdpa_digits,
+            target,
+            ordered_labels,
+            [
+                (name, label_matrices)
+                for name, _, label_matrices in blocks
+                if label_matrices
+            ],
+            [label_matrices for _, _, label_matrices in free_blocks],
+            [
+                relation
+                for _, relation in (
+                    gradient_relations
+                    + potential_relations
+                    + rank_relations
+                )
+            ],
+        )
+
     if args.facial_reduce_onb:
         if args.target_epsilon != 0:
             raise ValueError(
@@ -3018,6 +3648,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient", action="store_true")
     parser.add_argument("--hessian", action="store_true")
     parser.add_argument("--three-point-flags", action="store_true")
+    parser.add_argument("--h2-localized-flags", action="store_true")
     parser.add_argument("--four-point-flags", action="store_true")
     parser.add_argument("--two-root-flags", action="store_true")
     parser.add_argument("--max-flag-arity", type=int, default=0)
@@ -3045,6 +3676,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--box-bounds", action="store_true")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--scale-constraints", action="store_true")
+    parser.add_argument("--jacobi-scale-blocks", action="store_true")
+    parser.add_argument("--export-sdpa")
+    parser.add_argument("--sdpa-digits", type=int, default=50)
     parser.add_argument("--check-onb", action="store_true")
     parser.add_argument("--facial-reduce-onb", action="store_true")
     parser.add_argument("--exact-onb-face", action="store_true")

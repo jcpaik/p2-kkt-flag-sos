@@ -1,5 +1,16 @@
 # Degree-14 five-point command: complete mathematical reference
 
+> **Historical note (2026-08-11).** This document describes the original
+> *isotropic* formulation, in which every degree-two sampled vertex was
+> contracted through \(\mathbb E[XX^{\mathsf T}]=\tfrac13I\). The current
+> `sos_search.py` no longer performs that contraction: `("pair", 2)` and
+> all degree-two-vertex graphs are independent labels, the target is
+> \(T=-\tfrac14+\tfrac{15}{4}p_2-9p_4+6p_6\), and the isotropy deficit is
+> carried by the `harmonic_2`, `harmonic_flag_*`, and `spin2_flag` blocks.
+> Label counts, block lists, and the reported bound differ accordingly; see
+> [RESULTS.md](../RESULTS.md) for the non-isotropic record. The derivations
+> below remain correct for the isotropic branch they were written for.
+
 ## 1. Purpose and scope
 
 This document explains every mathematical object enabled by the command

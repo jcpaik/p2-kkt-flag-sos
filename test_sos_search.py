@@ -20,7 +20,16 @@ def test_triangle_reducer_matches_graph_reducer():
                 assert triangle == graph
 
 
-def test_isotropic_three_flag_identities():
+def test_second_moment_is_retained():
+    label, coefficient = search.expectation_label((0, 2, 0))
+    assert label == ("pair", 2)
+    assert coefficient == 1
+    label, coefficient = search.graph_expectation_label(2, (2,))
+    assert label == ("pair", 2)
+    assert coefficient == 1
+
+
+def test_general_three_flag_identities():
     s2 = [
         (Fraction(1), (2, 0, 0)),
         (Fraction(1), (0, 2, 0)),
@@ -31,38 +40,73 @@ def test_isotropic_three_flag_identities():
         (Fraction(1), (0, 4, 0)),
         (Fraction(1), (0, 0, 4)),
     ]
-    assert_vector_close(
-        search.expectation_vector(
-            search.multiply_polynomials(search.GRAM_DETERMINANT, s2)
-        ),
-        {
-            ("constant",): 1 / 3,
-            ("pair", 4): -1,
-        },
+    first = search.expectation_vector(
+        search.multiply_polynomials(search.GRAM_DETERMINANT, s2)
     )
     assert_vector_close(
-        search.expectation_vector(
-            search.multiply_polynomials(search.GRAM_DETERMINANT, s4)
-        ),
+        first,
         {
-            ("pair", 4): 1,
-            ("pair", 6): -1,
+            ("pair", 2): 3,
+            ("triangle", 1, 1, 3): 6,
+            ("pair", 4): -3,
+            ("triangle", 0, 2, 2): -6,
         },
     )
+    second = search.expectation_vector(
+        search.multiply_polynomials(search.GRAM_DETERMINANT, s4)
+    )
+    assert_vector_close(
+        second,
+        {
+            ("pair", 4): 3,
+            ("triangle", 1, 1, 5): 6,
+            ("pair", 6): -3,
+            ("triangle", 0, 2, 4): -6,
+        },
+    )
+    # On isotropic reference measures the general vectors must agree with
+    # the classical isotropic contractions 1/3 - p4 and p4 - p6.
+    for evaluate, p4, p6 in (
+        (search.onb_label_value, Fraction(1, 3), Fraction(1, 3)),
+        (
+            lambda label: search.pole_equator_label_value(label, 0),
+            Fraction(5, 18),
+            Fraction(1, 4),
+        ),
+    ):
+        first_value = sum(
+            Fraction(value).limit_denominator(10**6) * evaluate(label)
+            for label, value in first.items()
+        )
+        assert first_value == Fraction(1, 3) - p4
+        second_value = sum(
+            Fraction(value).limit_denominator(10**6) * evaluate(label)
+            for label, value in second.items()
+        )
+        assert second_value == p4 - p6
 
 
 def test_unweighted_hessian_identity():
+    # The isotropic contraction of both averaged Hessian kernels is
+    # -64 + 640 p4 - 448 p6.  The general (non-isotropic) label vectors must
+    # reproduce those values on the two exact isotropic reference measures.
     _, hessian, perpendicular_hessian = search.kernel_polynomials()
-    expected = {
-        ("constant",): -64,
-        ("pair", 4): 640,
-        ("pair", 6): -448,
-    }
-    assert_vector_close(search.expectation_vector(hessian), expected)
-    assert_vector_close(
-        search.expectation_vector(perpendicular_hessian),
-        expected,
-    )
+    for polynomial in (hessian, perpendicular_hessian):
+        vector = search.expectation_vector(polynomial)
+        for evaluate, p4, p6 in (
+            (search.onb_label_value, Fraction(1, 3), Fraction(1, 3)),
+            (
+                lambda label: search.pole_equator_label_value(label, 0),
+                Fraction(5, 18),
+                Fraction(1, 4),
+            ),
+        ):
+            value = sum(
+                Fraction(coefficient).limit_denominator(10**6)
+                * evaluate(label)
+                for label, coefficient in vector.items()
+            )
+            assert value == -64 + 640 * p4 - 448 * p6
 
 
 def test_orientation_pairing_polynomial():
@@ -105,17 +149,22 @@ def test_rank_relations_vanish_on_onb():
         assert abs(value) <= 1e-10
 
 
-def test_isotropic_target_vanishes_on_onb():
+def test_general_target_vanishes_on_onb():
     target = (
-        1
-        - 9 * float(search.onb_label_value(("pair", 4)))
-        + 6 * float(search.onb_label_value(("pair", 6)))
+        Fraction(-1, 4)
+        + Fraction(15, 4) * search.onb_label_value(("pair", 2))
+        - 9 * search.onb_label_value(("pair", 4))
+        + 6 * search.onb_label_value(("pair", 6))
     )
     assert target == 0
 
 
 def test_pole_equator_equality_moments_are_exact():
     for regular_order in (0, 4, 5):
+        p2 = search.pole_equator_label_value(
+            ("pair", 2),
+            regular_order,
+        )
         p4 = search.pole_equator_label_value(
             ("pair", 4),
             regular_order,
@@ -124,9 +173,12 @@ def test_pole_equator_equality_moments_are_exact():
             ("pair", 6),
             regular_order,
         )
+        assert p2 == Fraction(1, 3)
         assert p4 == Fraction(5, 18)
         assert p6 == Fraction(1, 4)
-        assert 1 - 9 * p4 + 6 * p6 == 0
+        assert (
+            Fraction(-1, 4) + Fraction(15, 4) * p2 - 9 * p4 + 6 * p6 == 0
+        )
 
 
 def test_lifted_hessian_reproduces_four_point_block():
@@ -216,6 +268,90 @@ def test_five_point_hessian_blocks_vanish_on_onb():
                 for label, matrix in label_matrices.items()
             )
             assert np.max(np.abs(moment_matrix)) <= 1e-10
+
+
+def test_harmonic_flag_blocks_are_psd_on_reference_measures():
+    for order in (2, 4, 6):
+        label_matrices = search.harmonic_flag_expectation_matrix(
+            order,
+            [0, 2, 4],
+        )
+        assert label_matrices
+        for evaluate in (
+            search.onb_label_value,
+            lambda label: search.pole_equator_label_value(label, 0),
+        ):
+            moment_matrix = sum(
+                float(evaluate(label)) * matrix
+                for label, matrix in label_matrices.items()
+            )
+            assert np.linalg.eigvalsh(moment_matrix)[0] >= -1e-12
+
+
+def test_harmonic_flag_corner_matches_scalar_harmonic():
+    for order in (2, 4, 6):
+        label_matrices = search.harmonic_flag_expectation_matrix(
+            order,
+            [0, 2],
+        )
+        scalar = search.harmonic_pair_vector(order)
+        for label, matrix in scalar.items():
+            assert abs(label_matrices[label][0, 0] - matrix[0, 0]) <= 1e-12
+        for label, matrix in label_matrices.items():
+            if label not in scalar:
+                assert abs(matrix[0, 0]) <= 1e-12
+
+
+def test_spin2_flag_block_is_psd_on_reference_measures():
+    basis = search.spin2_flag_basis(4)
+    assert ((), 0) in basis
+    assert ((2,), 0) in basis
+    assert ((1, 1), 1) in basis
+    label_matrices = search.spin2_flag_expectation_matrix(basis)
+    assert label_matrices
+    for evaluate in (
+        search.onb_label_value,
+        lambda label: search.pole_equator_label_value(label, 0),
+    ):
+        moment_matrix = sum(
+            float(evaluate(label)) * matrix
+            for label, matrix in label_matrices.items()
+        )
+        assert np.linalg.eigvalsh(moment_matrix)[0] >= -1e-12
+
+
+def test_spin2_empty_flag_squared_is_harmonic_energy():
+    # ||D||^2-entry: E[P_2(X.Z)] = h_2 = (3 p2 - 1)/2.
+    label_matrices = search.spin2_flag_expectation_matrix([((), 0)])
+    assert_vector_close(
+        {label: matrix[0, 0] for label, matrix in label_matrices.items()},
+        {
+            ("pair", 2): 1.5,
+            ("constant",): -0.5,
+        },
+    )
+
+
+def test_h2_localized_flag_block_vanishes_on_isotropic_measures():
+    harmonics = search.tangent_harmonic_polynomials(2)
+    for tangent_harmonic in harmonics:
+        label_matrices = search.h2_localized_flag_expectation_matrix(
+            [0, 2],
+            tangent_harmonic,
+        )
+        # Fresh vertices are independent, so the block factors as
+        # h_2 times the plain flag block; both reference measures are
+        # isotropic (h_2 = 0), hence the block must vanish there.
+        for evaluate in (
+            search.onb_label_value,
+            lambda label: search.pole_equator_label_value(label, 0),
+        ):
+            moment_matrix = sum(
+                float(evaluate(label)) * matrix
+                for label, matrix in label_matrices.items()
+            )
+            if isinstance(moment_matrix, np.ndarray):
+                assert np.max(np.abs(moment_matrix)) <= 1e-12
 
 
 def test_exact_equality_quotient_annihilates_free_generators():

@@ -17,9 +17,11 @@ A Gram monomial is stored as a multigraph. Edge multiplicity is the exponent
 of the corresponding inner product. `reduce_graph_matrix` applies:
 
 - antipodal parity;
-- isotropic contraction of degree-two vertices;
 - factorization over disconnected components;
 - canonical relabeling under vertex permutations.
+
+No isotropy contraction is applied: degree-two vertices stay in the label,
+so `("pair", 2)` and its relatives are genuine moment variables.
 
 Unreduced connected moments become labels such as `triangle`, `graph_4`,
 `graph_5`, or `graph_6`.
@@ -32,7 +34,11 @@ The main block families are:
 - `two_root_*`: two-root even and orientation-odd sectors;
 - `star_flag_*`: higher-arity flags with root-to-leaf factors;
 - `weighted_flag_*`: higher-arity flags with additional root-root factors;
-- `harmonic_*`: ordinary nonnegative spherical-harmonic moments;
+- `harmonic_*`: ordinary nonnegative spherical-harmonic moments, from
+  degree 2 upward (`harmonic_2` encodes \(p_2\ge1/3\));
+- `harmonic_flag_*` and `spin2_flag`: spin-\(\ell\) Gram blocks of
+  harmonic-weighted unrooted flags; the spin-2 block contains the
+  deviatoric second moment and subsumes the removed isotropy contraction;
 - `hessian_*`: scalar and matrix-valued KKT Hessian multipliers;
 - `global_*_gap`: nonnegative multipliers of the global first-variation gap.
 
@@ -46,7 +52,7 @@ The following are equality multipliers and therefore need not be PSD:
 - gradient relations: \(\nabla U_\mu(x)=0\);
 - `rank_flag_*` and scalar rank relations:
   \(\det\operatorname{Gram}_4=0\);
-- exact isotropic and exchangeability reductions built into the labels.
+- exact exchangeability reductions built into the labels.
 
 ## Degree and arity
 

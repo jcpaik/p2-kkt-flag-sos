@@ -2,7 +2,10 @@
 
 ## Outcome
 
-No exact SOS certificate for equation (12) was found.
+No exact SOS certificate for equation (12) was found, either with or
+without the isotropy assumption.  The historical isotropic results below
+are retained for reference; the current code implements the non-isotropic
+hierarchy recorded in the final section, whose numbers supersede them.
 
 The search did find and validate the correct symmetry-reduced SDP hierarchy,
 including the KKT Hessian blocks that were only schematic in (12).  MOSEK
@@ -210,4 +213,144 @@ python3 sos_search.py \
   --hessian --four-point-hessian \
   --global-gap --global-tangent-gaps \
   --tolerance 1e-10
+```
+
+## Non-isotropic hierarchy (current code, 2026-08-11)
+
+The isotropy relation `E[XX^T] = I/3` was removed from the moment reducer:
+degree-two sampled vertices are retained in canonical labels, `p2` is a
+genuine moment variable, and the target is the general normalization
+`T = -1/4 + (15/4) p2 - 9 p4 + 6 p6 = (3/16) E`.  The isotropy deficit is
+carried by flag squares: the scalar harmonic block
+`h2 = (3 p2 - 1)/2 >= 0` and a spin-2 Gram block whose basis contains the
+deviatoric second moment `D` together with one- and two-leaf spin-2 flags.
+All KKT blocks (gradient, potential, Hessian, global gaps) were
+regeneralized: the energy expansion is
+`E = -4/3 + 20 p2 - 48 p4 + 32 p6` and the uniform-measure gap is
+`172/105 - 20 p2 + 48 p4 - 32 p6`.  The ONB audit of the general hierarchy
+is exact: target 0, worst block eigenvalue `-1.1e-13`, all KKT/rank
+identities vanish.
+
+MOSEK dual bounds for `T` (tolerance 1e-8/1e-9, scaled constraints):
+
+| configuration | labels | bound |
+|---|---:|---:|
+| degree 12, four-point | 308 | -3.34e-3 |
+| degree 14, four-point | 614 | -8.76e-4 |
+| degree 14, four-point + spin-2 | 668 | -8.42e-4 |
+| degree 14, five-point weighted | 1183 | -9.16e-4 |
+| degree 14, five-point + Hessian arity 5 | 1187 | -9.36e-4 |
+| degree 14, five-point + rank matrices | 1194 | -8.46e-4 |
+| degree 14, five-point + rank + spin-2 | 1231 | -8.95e-4 |
+| degree 14, six-point star | 724 | -8.94e-4 |
+| degree 14, six-point root-weighted (factor degree 1) | 1834 | -9.17e-4 |
+| degree 14, five-point + h2-localized flags | 1232 | -1.00e-3 |
+| degree 16, four-point | 920 | not converged |
+| degree 16, five-point weighted | 2580 | not converged |
+| degree 18, four-point | 1629 | not converged |
+
+### Degree escalation under Jacobi equilibration
+
+`--jacobi-scale-blocks` applies the exact congruence rescaling
+`A_L -> D A_L D` per block, with `D` from row maxima.  It reduces the
+degree-14 residuals from `~3e-7` to `~3e-10` and lets degrees 16/18
+terminate, but only to `~2e-6` relation residuals:
+
+| four-point + Jacobi | labels | bound |
+|---|---:|---:|
+| degree 14 (tol 1e-9) | 614 | -9.16e-4 |
+| degree 16 (tol 1e-8) | 1036 | -1.22e-3 |
+| degree 18 (tol 1e-8) | 1855 | -1.16e-3 |
+
+The degree-16/18 values sit *below* the degree-14 value, violating the
+monotonicity of the true optima; the achievable objective accuracy at
+those sizes is therefore no better than `~1e-4`, which is exactly the
+scale of the differences in question.  MOSEK's solve-form and tolerance
+parameters produce bit-identical stalls without equilibration.  Within
+double-precision interior-point arithmetic, the degree axis of the
+non-isotropic hierarchy is numerically unresolvable beyond degree 14.
+
+### Extended precision (SDPA-GMP) resolves the degree axis
+
+`--export-sdpa PATH` writes the dual moment problem in SDPA sparse
+format: block coefficients are rationalized, every equality (KKT, rank,
+free matrix blocks) is eliminated over the rationals via the exact RREF
+quotient, the constant moment is substituted exactly, an image basis of
+the resulting directions is selected by exact sparse Gaussian
+elimination (float rank decisions provably corrupt the feasible set),
+each direction is normalized exactly, and all data are written as
+50-digit decimals.  Solving with SDPA-GMP (200-bit precision,
+`epsilonStar 1e-25`) gives, for the four-point configuration:
+
+| degree | m | SDPA-GMP bound | MOSEK (double) |
+|---:|---:|---:|---:|
+| 12 | 202 | -3.0548e-3 | -3.0664e-3 |
+| 14 | 396 | -8.4105e-4 | -8.4e-4 band |
+| 16 | 623 | **-1.4385e-4** | -1.22e-3 (noise) |
+
+Primal and dual objectives agree to 13 digits at every degree.  The
+degree-16 value improves on degree 14 by a factor 5.8 (12 -> 14 was 3.6),
+so the earlier conclusion that the non-isotropic band is degree-stable
+was an artifact of MOSEK's double-precision noise floor and is
+retracted: the degree axis is alive, and the non-isotropic four-point
+value at degree 16 already beats the historical isotropic four-point
+value at degree 18 (-1.66e-4).
+
+The five-point configuration (arity 5, root-factor degree 2, matrix rank
+identities; m = 925) solved at degree 14 gives the primal/dual bracket
+[-8.46e-4, -8.40e-4] - indistinguishable from the four-point value.  In
+high precision this is a genuine measurement: unlike the isotropic
+hierarchy, where this exact layer produced the four-order jump to
+-4.8e-8, the non-isotropic arity-5 layer is inert at degree 14.  The
+degree axis, not the arity axis, carries the non-isotropic hierarchy at
+these sizes.
+
+The `--h2-localized-flags` option multiplies one-root flag squares by the
+nonnegative moment quantity `h2 = E[P_2(W.W')]` over two fresh samples.
+The resulting entries are product labels `h2 x flag`; because the
+relaxation linearizes products, nothing couples `y_{h2 x flag}` to
+`h2 * y_flag`, and the block does not repair the sqrt(h2) leak.  Six-point
+star flags likewise leave the bound in the same band.
+
+"Not converged" means MOSEK terminated with block violations at or above
+`1e-4`, so the reported objectives carry no information.  The exact ONB
+facial reduction of the degree-14 primal terminates with status UNKNOWN
+and diverging iterates: no certificate exists at the sharp target on that
+face, consistent with the strictly negative dual value.
+
+### Diagnosis
+
+The optimal pseudo-moment sets `h2 ~ 3.3e-3 > 0` and violates the
+isotropic contraction identities by `~1.5e-3`, e.g.
+`E[a^2 b^2] - p2/3 = 1.16e-3`.  The objective charges `h2` linearly
+(`+(45/8) h2` inside `T`), while a violation bought against the spin-2
+Gram block earns of order `sqrt(h2)` through the dual multipliers; for
+small `h2` the square root wins, producing a strictly negative floor
+`T* ~ -c^2` with `c ~ 0.1` — matching the observed `-8.5e-4` band.  Real
+measures cannot do this: their spin-2 correlation vectors all lie in the
+five-dimensional harmonic space, a rank condition that is not
+semidefinite-representable at accessible label sizes (its determinant
+identities involve ~24-vertex product labels).
+
+Consequently the removal of isotropy is **not** currently subsumed by the
+implemented flag decomposition at degree 14: the isotropic-branch
+near-certificate `-4.8e-8` degrades to `-8.5e-4`.  Closing the gap
+requires either certificate multipliers that annihilate every spin-2
+residual direction at the minimizing face, an SDP-representable surrogate
+for the spin-2 rank condition, or an independent isotropy-reduction
+theorem for negative global minimizers.
+
+Strongest stable non-isotropic run:
+
+```sh
+python3 sos_search.py \
+  --dual --summary-only --scale-constraints --rank-relations \
+  --higher-rank-matrices \
+  --degree 14 --no-pointwise-sos \
+  --harmonics --three-point-flags --four-point-flags --two-root-flags \
+  --max-flag-arity 5 --max-root-factor-degree 2 \
+  --gradient --potential --potential-matrices \
+  --hessian --four-point-hessian \
+  --global-gap --global-tangent-gaps \
+  --tolerance 1e-9
 ```

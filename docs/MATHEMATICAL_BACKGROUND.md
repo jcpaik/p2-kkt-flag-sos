@@ -96,27 +96,26 @@ M_2(\mu)=\frac13I.
 \tag{3.2}
 \]
 
-Since
+Since \(p_2=\operatorname{tr}(M_2^2)\) and \(\operatorname{tr}M_2=1\), one
+always has \(p_2\ge1/3\), with equality precisely at isotropy. The
+difference is a harmonic square:
 
 \[
-p_2=\operatorname{tr}(M_2^2),
+h_2=\frac{3p_2-1}{2}=\sum_m|\hat\mu_{2m}|^2
+=\frac32\left\|M_2-\tfrac13I\right\|_F^2\ \ge\ 0.
 \]
 
-isotropy implies \(p_2=1/3\). Substituting into (3.1) yields
+The code makes **no isotropy assumption**. It uses the general normalized
+target
 
 \[
-E_K(\mu)=\frac{16}{3}\left(1-9p_4+6p_6\right).
-\]
-
-The code therefore uses the normalized target
-
-\[
-T(\mu)=1-9p_4+6p_6=\frac{3}{16}E_K(\mu).
+T(\mu)=-\frac14+\frac{15}{4}p_2-9p_4+6p_6=\frac{3}{16}E_K(\mu),
 \tag{3.3}
 \]
 
-The contractions performed by `sos_search.py` use (3.2). Consequently, the
-current SDP is an isotropic certificate search.
+keeps \(p_2\) and every other antipodally even moment as an independent
+label, and encodes the isotropy deficit through the flag squares
+\(h_2\ge0\) and the spin-2 Gram blocks of Section 6.
 
 ## 4. The potential and measure KKT conditions
 

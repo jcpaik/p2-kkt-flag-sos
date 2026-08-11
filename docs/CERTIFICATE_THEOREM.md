@@ -145,33 +145,28 @@ then gives \(E(\mu_*)\ge0\), a contradiction.
 
 \(\square\)
 
-## 5. The isotropy caveat
+## 5. Coverage without the isotropy assumption
 
-The current program contracts every degree-two sampled vertex using
+The current program makes no isotropy assumption. Degree-two sampled
+vertices are retained in the canonical moment labels, so the certificate
+algebra covers every antipodally symmetric probability measure satisfying
+the KKT conditions. Antipodal symmetry itself is exact: \(K\) is even, so
+symmetrizing \(\mu\mapsto\tfrac12(\mu+\mu^-)\) preserves \(E\), and a
+negative minimizer may be taken antipodal without loss of generality.
 
-\[
-\int xx^T\,d\mu(x)=\frac13I.
-\]
+Consequently a rationally verified certificate in the current algebra
+would prove unrestricted copositivity directly — assumption 1 of the
+global reduction theorem holds for the full class.
 
-Accordingly, its certificate identity is valid only under isotropy.
-
-It is not presently proved in this repository that every hypothetical
-negative global minimizer must be isotropic. Therefore:
-
-> Rationalizing the current numerical matrices would rigorously settle the
-> isotropic KKT branch, but it would not by itself prove unrestricted
-> copositivity.
-
-Unrestricted copositivity would follow from either:
-
-1. an independent isotropy-reduction theorem for negative global minimizers;
-2. a full certificate that retains the entries of the second-moment matrix
-   instead of imposing isotropy; or
-3. a collection of certificates covering every possible second-moment
-   stratum.
-
-This is a mathematical coverage issue, distinct from numerical
-rationalization.
+The isotropy deficit is represented inside the hierarchy by harmonic flag
+squares: \(h_2=\sum_m|\hat\mu_{2m}|^2\ge0\) and spin-2 Gram blocks
+containing the deviatoric second moment. However, as recorded in
+[Numerical results](../RESULTS.md), the numerical dual value of the
+non-isotropic hierarchy at degree 14 is approximately
+\(-8.5\times10^{-4}\), far from zero: no such certificate has been found,
+and the convex relaxation of the spin-2 sector provably leaks at order
+\(\sqrt{h_2}\) against the linear cost of \(h_2\). Coverage is therefore
+no longer the obstacle; existence of a finite-degree certificate is.
 
 ## 6. What “rationalized and exactified” requires
 
