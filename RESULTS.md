@@ -282,11 +282,66 @@ each direction is normalized exactly, and all data are written as
 50-digit decimals.  Solving with SDPA-GMP (200-bit precision,
 `epsilonStar 1e-25`) gives, for the four-point configuration:
 
-| degree | m | SDPA-GMP bound | MOSEK (double) |
+| degree | m | SDPA-GMP bound | ratio to previous |
 |---:|---:|---:|---:|
-| 12 | 202 | -3.0548e-3 | -3.0664e-3 |
-| 14 | 396 | -8.4105e-4 | -8.4e-4 band |
-| 16 | 623 | **-1.4385e-4** | -1.22e-3 (noise) |
+| 12 | 202 | -3.0548e-3 | |
+| 14 | 396 | -8.4105e-4 | 0.275 |
+| 16 | 623 | -1.4385e-4 | 0.171 |
+| 18 | 1089 | **-1.4174e-5** | 0.0985 |
+
+The successive ratios shrink and their logarithms decrease linearly
+(-1.29, -1.77, -2.32), i.e. the sequence decays like `exp(-c d^2)` -
+super-exponentially in the degree.  A geometric tail fitted to any three
+consecutive values extrapolates to a positive limit, which is impossible
+for a nonpositive sequence; together these give strong numerical
+evidence that the arity-4, degree -> infinity limit of the
+assumption-free hierarchy is exactly zero, so an asymptotic kernel
+certificate exists at four points without any isotropy assumption.
+Gaussian-in-degree convergence on a compact Gram domain is the signature
+of an entire limit kernel, which supports the program of extracting the
+limit certificate in closed form (degreewise coefficient extrapolation
+plus integer-relation detection on the 40-digit SDPA-GMP solutions,
+implemented in `sdpa_extract.py`).
+
+### Canonical (minimum-trace) certificates
+
+`sdpa_selector.py` converts an exported problem into its certificate
+selector: among all certificates proving `T >= -eps`, find the one of
+minimal trace.  This is a verbatim text transform (objective becomes
+-Identity; the old objective becomes one extra constraint with a 1x1
+slack block), so no precision is lost.  At `eps = 1e-3`:
+
+| degree | minimal certificate trace (eps = 1e-3) |
+|---:|---:|
+| 14 | 1.0365e+4 |
+| 16 | 2.1950e+3 |
+| 18 | 1.1006e+3 |
+
+The collapse decelerates (factors 4.7, 2.0), extrapolating to a plateau
+near 9.3e+2, so the eps = 1e-3 canonical certificate converges around
+degree 20-22.  Deeper eps at fixed degree obeys a clean reciprocal law:
+`trace(18, 1e-3) * 1e-3 = 1.10` and `trace(18, 2e-5) * 2e-5 = 1.066`,
+i.e. tr C(eps) ~ (1.07 +/- 0.04)/eps - the asymptotic certificate
+family has a simple pole in eps.  However the two certificates'
+gauge-invariant fingerprints are nearly orthogonal (cosine -0.10), so
+the pole's "residue" is not a fixed object at these sizes: either it
+rotates with eps or the nuclear-norm argmin jumps, motivating a strictly
+convex (Frobenius) selector.
+
+Both solves sit exactly at the bound (slack < 1e-25).  The trace is
+still collapsing ~5x per +2 degrees, so the canonical certificate has
+not begun to converge at these degrees: matrix-level comparison shows
+support switching between block families, and the gauge-invariant
+fingerprint (the label expansion residual e(Y) - target, i.e. the free
+multiplier loading, computed via `--dump-blocks`) has cosine similarity
+only 0.49 between degrees 14 and 16.  Convergence of the
+`eps`-canonical certificate requires degrees where the trace plateaus
+(estimated 18-20+ for eps = 1e-3).  Two structural observations: the
+dominant free-multiplier loadings sit on `graph_4` labels, so the
+`det Gram_4 = 0` rank identities carry the certificate's main weight;
+and trace selection (a nuclear norm) is not strictly convex, so a
+strictly convex selector (Frobenius norm, expressible in Clarabel)
+would give a more robust canonical point.
 
 Primal and dual objectives agree to 13 digits at every degree.  The
 degree-16 value improves on degree 14 by a factor 5.8 (12 -> 14 was 3.6),

@@ -2777,6 +2777,31 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
 
     ordered_labels = sorted(labels, key=str)
 
+    if args.dump_blocks:
+        # Serialize every PSD block's label->coefficient-matrix map, so
+        # analysis scripts can expand a certificate back into label space
+        # (the gauge-invariant fingerprint e_L(Y) = sum_b <A_L^b, Y_b>).
+        payload = {
+            "labels": [str(label) for label in ordered_labels],
+            "blocks": {
+                name: {
+                    str(label): matrix.tolist()
+                    for label, matrix in label_matrices.items()
+                }
+                for name, _, label_matrices in blocks
+                if label_matrices
+            },
+            "target": {
+                str(label): value for label, value in target.items()
+            },
+        }
+        Path(args.dump_blocks).write_text(json.dumps(payload))
+        return {
+            "dump": args.dump_blocks,
+            "blocks": len(payload["blocks"]),
+            "labels": len(ordered_labels),
+        }
+
     if args.export_sdpa:
         if args.jacobi_scale_blocks:
             raise ValueError(
@@ -3679,6 +3704,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jacobi-scale-blocks", action="store_true")
     parser.add_argument("--export-sdpa")
     parser.add_argument("--sdpa-digits", type=int, default=50)
+    parser.add_argument("--dump-blocks")
     parser.add_argument("--check-onb", action="store_true")
     parser.add_argument("--facial-reduce-onb", action="store_true")
     parser.add_argument("--exact-onb-face", action="store_true")
