@@ -287,7 +287,8 @@ each direction is normalized exactly, and all data are written as
 | 12 | 202 | -3.0548e-3 | |
 | 14 | 396 | -8.4105e-4 | 0.275 |
 | 16 | 623 | -1.4385e-4 | 0.171 |
-| 18 | 1089 | **-1.4174e-5** | 0.0985 |
+| 18 | 1089 | -1.4174e-5 | 0.0985 |
+| 20 | 1602 | **-9.9709e-7** | 0.0703 |
 
 The successive ratios shrink and their logarithms decrease linearly
 (-1.29, -1.77, -2.32), i.e. the sequence decays like `exp(-c d^2)` -
@@ -409,3 +410,113 @@ python3 sos_search.py \
   --global-gap --global-tangent-gaps \
   --tolerance 1e-9
 ```
+
+## Ablation: which flags and optimality conditions carry the certificate
+
+Motivated by the search for a human-interpretable certificate, every toggle
+of the four-point hierarchy was ablated one at a time at degree 14 and the
+resulting problem re-solved with SDPA-GMP (200-bit, `epsilonStar 1e-25`).
+Both ablation directions are monotone (dropping a PSD family shrinks the
+certificate cone, dropping an equality family enlarges the pseudo-moment
+set), so "bound unchanged" is a proof of irrelevance at that degree.
+Baseline: `-8.4105048582e-4`.
+
+| dropped toggle | change in degree-14 bound |
+|---|---:|
+| `--hessian` | `-1e-17` |
+| `--global-gap` | `+7e-16` |
+| `--four-point-hessian` | `+2.7e-13` |
+| `--potential-matrices` | `+3.4e-13` |
+| `--harmonics` | `-1.9e-6` |
+| `--three-point-flags` | `-9.9e-6` |
+| `--global-tangent-gaps` | `-1.2e-5` |
+| `--four-point-flags` | `-4.3e-5` |
+| `--gradient` | `-6.0e-5` |
+| `--potential` | `-1.7e-4` |
+| `--two-root-flags` | `-1.2e-2` |
+| `--rank-relations` | `-1.2e-2` |
+
+Dropping either `--two-root-flags` or `--rank-relations` collapses the
+bound to exactly `-1/77`: each of the two families independently excludes
+the `p4 = 2/7, p6 = 20/77` pseudo-solution branch, and together they carry
+essentially the whole certificate.  The interior-point certificate agrees:
+its Gram weight concentrates on `two_root_even_00`, `two_root_even_11`,
+their localizing minors and `flag_1` (norms `~1e6`), with
+`empty_type_flag`, `harmonic_flag_6`, `flag_6`,
+`global_parallel_tangent_gap` trailing at `1e1 .. 1e-3`, and every
+Hessian, global-gap, `harmonic_l`, and spin-2 block at numerical zero.
+Because the interior-point limit is the max-rank analytic center of the
+optimal face, the zero blocks are zero in every optimal certificate at
+this degree.
+
+Degree 14 is, however, not representative of the degree axis: at degree 16
+the two-sample spherical Hessian family switches on (`hessian_minor`,
+`hessian_sos` reach Gram norm `~4e-2`), and the active sub-block support
+rotates with degree (`harmonic_flag_4`/`flag_2`/`flag_3` replace
+`harmonic_flag_6`/`flag_6`; the perpendicular tangent gap replaces the
+parallel one).  Three families stay at zero at every tested degree and are
+jointly removable; the pruned nine-toggle hierarchy
+
+```sh
+python3 sos_search.py \
+  --export-sdpa PROBLEM.dat-s \
+  --degree DEGREE --no-pointwise-sos \
+  --harmonics --three-point-flags --four-point-flags --two-root-flags \
+  --gradient --potential --hessian \
+  --global-tangent-gaps --rank-relations
+```
+
+(i.e. dropping `--four-point-hessian`, `--global-gap`, and
+`--potential-matrices`) reproduces the full-hierarchy SDPA-GMP bounds to
+solver precision:
+
+| degree | full hierarchy | pruned (9 toggles) |
+|---:|---:|---:|
+| 14 | -8.4105048582e-4 | -8.4105048557e-4 |
+| 16 | -1.4384819493e-4 | -1.4384819494e-4 |
+| 18 | -1.4174e-5 | -1.4174120e-5 |
+
+The four-sample Hessian multipliers, the global uniform gap, and the
+matrix-valued potential multipliers are therefore dead weight at every
+accessible degree, while the scalar first-order KKT identities
+(`--gradient`, `--potential`) and the two-sample second-order block
+(`--hessian`, from degree 16) are genuinely load-bearing.
+
+One structural caveat for certificate extraction: removing the inactive
+families moves the analytic center far out along the recession directions
+of the optimal face (heavy Gram entries grow from `~1e6` to `~1e11` at
+degree 14), consistent with the known non-attainment at the sharp target.
+
+## The two-family cone: two-root flags + rank relations only
+
+Since `--two-root-flags` and `--rank-relations` dominate the ablation, and
+both are valid for *all* antipodally contracted measures (they encode no
+optimality condition), the pure copositivity relaxation using only these
+two families was swept in degree:
+
+| degree | m | two-family bound | full hierarchy |
+|---:|---:|---:|---:|
+| 12 | 190 | -1.2079e-1 | -3.0548e-3 |
+| 14 | 367 | -3.0925e-3 | -8.4105e-4 |
+| 16 | 550 | -2.8644e-4 | -1.4385e-4 |
+| 18 | 947 | -5.3161e-5 | -1.4174e-5 |
+
+(The degree-18 two-family value is a 128-bit `epsilonStar 1e-16` solve
+with primal/dual agreement `2.9e-9`; double-precision MOSEK cannot
+substitute at these sizes: on the exported degree-16 problem it stalls
+at `-1.34e-2` against the true `-2.864e-4` while reporting status
+optimal.)
+
+The two-family cone starts far weaker and initially converges onto the
+full hierarchy's curve (excess factor 39.5 at degree 12, 3.7 at 14,
+2.0 at 16), but the degree-18 value breaks the pattern: the successive
+ratios are 0.026, 0.093, 0.186 - doubling per step rather than
+shrinking - and the excess over the full hierarchy bounces back to
+3.75.  The two-family decay is therefore *not* super-geometric.  Two
+scenarios remain: the ratio stabilizes below 1 (bound still tends to 0,
+merely geometrically) or the ratio tends to 1 (strictly negative
+limit, and the two families alone do not certify copositivity even
+asymptotically).  Geometric continuation predicts about `-1.0e-5` at
+degree 20; continued ratio-doubling predicts about `-2.0e-5` with a
+possible negative limit near `-1.5e-5`.  The degree-20 solve is in
+progress.
