@@ -131,3 +131,36 @@ object is the **conditional-Toeplitz moment-matrix positivity of the
 fiber** (PSD by Toeplitz positivity, not by squaring — the flag
 incarnation of the 7×7 fiber PSD of the cylindrical analysis), plus
 its p2-product/h2loc copies.  v3 in progress.
+
+## 5. Round three (v3 fiber-Toeplitz) and the saturation verdict (2026-08-18)
+
+v3 = v2 + fiber-Toeplitz moment matrices (provably outside every
+polynomial Gram span for K ≥ 2) + pair-sector Hankel/Jensen companions.
+
+| ε | control | v2 | v3 |
+|---|---:|---:|---:|
+| 1e−3 | 764.99 | 437.51 | **359.83** |
+| 1e−4 | 8133.57 | 1544.18 | **1472.80** |
+| 5.33e−5 | 13637.2 | 1909.11 | **1883.73** |
+| 2e−5 | — | — | **5934.81** |
+
+Dual bounds (200-bit): toep2 = toep3 = **−3.66051e−6** (pdOPT) — the
+v2 Jensen/covariance families improve the degree-14 weighted bound
+7.6× (from −2.7909e−5); v3 leaves the bound unchanged.  Plain deg-16
+selector law: tr(1e−4) = 4073.66 → tr(1e−5) = 14068.66 (pFEAS):
+3.45×/decade.
+
+**Saturation verdict.**  Below ~5e−5 the law re-steepens (local
+exponent 1.17 on 5.33e−5 → 2e−5, at 5.5× the toep wall), and the deep
+escape returns through `h2loc_two_root_even_11` (10.9 → 753) — the
+sector the Jensen blocks suppress in the window.  Mechanism: the
+covariance inequalities have a kernel (deterministic fibers, Cov = 0);
+the sharp escape asymptotically *saturates* them — the same
+Cauchy–Schwarz-closure behaviour EXACT_ZERO_PROGRAM §3 predicted for
+the √h₂ leak.  Convex cut families get saturated one by one; the
+irreducible repair is a **multiplier vanishing on the saturation
+face** (fiber-deterministic, quadrupole-invariant measures).  The
+proven candidates: e₅(I−A₂) (graph_5 extension,
+docs/MULTI_WEIGHT_PROGRAM.md), the W-KKT re-encoding, and deeper-K
+fiber-Toeplitz at degree 16 (staged: `deg16_h2w_h2all_toep.dat-s`,
+`sel16_toep_1em4/1em5` — the wall-free deep test, wall ≤ 1.31e−6).
