@@ -371,3 +371,54 @@ def test_exact_equality_quotient_annihilates_free_generators():
             second: Fraction(1),
         }
     ]
+
+
+def test_weighted_e1_two_root_classification_small_degree():
+    """Weighted-(E1): admissible two-root leaves are the deviatoric span.
+
+    At flag degree 4 the closed form (docs/WEIGHTED_E1_NOTE.md) must
+    equal the exact nullspace of the isotropic necessary rows.
+    """
+
+    import solve_e1 as e1
+
+    pairs = e1.sample_root_pairs(9)
+    for parity, det_sector in ((0, False), (1, True)):
+        basis = e1.two_root_basis(4, parity)
+        rows = e1.weighted_two_root_rows(basis, det_sector, pairs)
+        space = e1.nullspace(rows, len(basis))
+        predicted = e1.weighted_two_root_predicted(basis, det_sector)
+        assert e1.same_span(space, predicted)
+
+
+def test_weighted_e1_sufficiency_identities():
+    import solve_e1 as e1
+
+    assert e1.weighted_sufficiency_identities(3)
+
+
+def test_weighted_projection_loader_round_trip(tmp_path):
+    """The weighted export is consumed by load_e1_projection with the
+    weighted extras (one-root, pair, harmonic-flag bases)."""
+
+    import solve_e1 as e1
+
+    path = tmp_path / "e1w_projection_deg10.json"
+    e1.export_projection(str(path), 10, weighted=True)
+    degree, sectors, spin2, weighted = search.load_e1_projection(str(path))
+    assert degree == 10
+    assert weighted is not None
+    assert weighted["one_root"][0] == [
+        {0: Fraction(-1, 3), 2: Fraction(1)}
+    ]
+    assert weighted["pair_flags"] == [{0: Fraction(-1), 2: Fraction(3)}]
+    assert set(sectors) == {
+        "two_root_even_00", "two_root_even_00_minor",
+        "two_root_even_11", "two_root_even_11_minor",
+        "two_root_odd_01", "two_root_odd_01_minor",
+        "two_root_odd_10", "two_root_odd_10_minor",
+    }
+    # degree-10 caps: flag degree 5, minors 4
+    basis, vectors = sectors["two_root_even_00"]
+    assert len(vectors) == 6  # alpha,beta in {1,s^2}; gamma in {s,s^3}
+    assert spin2 is not None

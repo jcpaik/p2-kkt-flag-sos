@@ -1883,7 +1883,14 @@ def polynomial_flag_expectation_matrix(
 
 
 def load_e1_projection(path: str):
-    """Read the admissible-basis file written by solve_e1.py."""
+    """Read the admissible-basis file written by solve_e1.py.
+
+    Returns (solver_degree, sectors, spin2, weighted) where ``weighted`` is
+    None for a legacy unweighted file, else a dict with the weighted-(E1)
+    admissible bases for the one-root, pair-flag and harmonic_flag
+    families (the two-root sectors and spin2_flag live in ``sectors`` and
+    ``spin2`` as before).
+    """
 
     import json
 
@@ -1906,7 +1913,38 @@ def load_e1_projection(path: str):
             for vector in entry["vectors"]
         ]
         spin2 = (basis, vectors)
-    return int(data["solver_degree"]), sectors, spin2
+    weighted = None
+    if data.get("weighted"):
+        weighted = {
+            "one_root": {
+                int(spin): [
+                    {
+                        int(degree): Fraction(value)
+                        for degree, value in radial.items()
+                    }
+                    for radial in radials
+                ]
+                for spin, radials in data["one_root"].items()
+            },
+            "pair_flags": [
+                {
+                    int(degree): Fraction(value)
+                    for degree, value in combo.items()
+                }
+                for combo in data["pair_flags"]
+            ],
+            "harmonic_flag": {
+                int(order): [
+                    {
+                        int(degree): Fraction(value)
+                        for degree, value in combo.items()
+                    }
+                    for combo in combos
+                ]
+                for order, combos in data["harmonic_flag"].items()
+            },
+        }
+    return int(data["solver_degree"]), sectors, spin2, weighted
 
 
 def conjugate_label_matrices(
@@ -2305,10 +2343,11 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
 
     e1_sectors = None
     e1_spin2 = None
+    e1_weighted = None
     e1_families: set[str] = set()
     if getattr(args, "e1_project", None):
-        projection_degree, e1_sectors, e1_spin2 = load_e1_projection(
-            args.e1_project
+        projection_degree, e1_sectors, e1_spin2, e1_weighted = (
+            load_e1_projection(args.e1_project)
         )
         if projection_degree != args.degree:
             raise SystemExit(
@@ -2322,6 +2361,42 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
 
     def e1_on(family: str) -> bool:
         return e1_sectors is not None and family in e1_families
+
+    # h2-multiplied localized copies are exempt from the value-level
+    # (E1)/weighted-(E1) projection (their h2 factor already vanishes on
+    # the whole zero set), so --h2-localized-all builds them from the
+    # unprojected matrices by default.
+    unprojected_matrices: dict[str, dict[Label, np.ndarray]] = {}
+
+    # Second-order complementary slackness at the E-zero family is NOT
+    # vacuous for the localized layer: along any admissible curve mu_t
+    # through an E-zero measure, W = h2 E vanishes to third order
+    # (h2 = O(t^2), E = O(t)), while an h2-localized block contributes
+    # (1/2) h2''[d] * B_base(mu*) at order t^2 with h2''[d] > 0 for
+    # generic directions.  Hence the BASE value of every h2-multiplied
+    # block must vanish on the E-zero family: the h2loc layer is
+    # projected by the UNWEIGHTED (E1) bases (docs/WEIGHTED_E1_NOTE.md).
+    e1loc_sectors = None
+    e1loc_spin2 = None
+    localized_projected_matrices: dict[str, dict[Label, np.ndarray]] = {}
+    if getattr(args, "e1_project_localized", None):
+        loc_degree, e1loc_sectors, e1loc_spin2, loc_weighted = (
+            load_e1_projection(args.e1_project_localized)
+        )
+        if loc_degree != args.degree:
+            raise SystemExit(
+                f"--e1-project-localized file is for degree {loc_degree}, "
+                f"but this run is degree {args.degree}"
+            )
+        if loc_weighted is not None:
+            raise SystemExit(
+                "--e1-project-localized expects an unweighted (E1) "
+                "projection file (the E-zero-family bases), not a "
+                "weighted one"
+            )
+
+    def e1loc_on() -> bool:
+        return e1loc_sectors is not None
 
     module_terms: list[tuple[str, Polynomial, int]] = []
     if not args.no_pointwise_sos:
@@ -2346,11 +2421,39 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             # Every entry has degree at most degree.  Leaf parity must match
             # the O(2) weight for antipodally invariant (projective) flags.
             maximum_leaf_degree = (args.degree - 2 * order) // 2
-            if e1_on("three-point"):
-                # Closed-form (E1) leaves; spin >= 4 admits none at any degree.
-                radials = [
+            if e1loc_on():
+                loc_radials = [
                     polynomial
                     for polynomial in E1_ONE_ROOT_RADIALS.get(order, [])
+                    if max(polynomial) <= maximum_leaf_degree
+                ]
+                localized_projected_matrices[f"flag_{order}"] = (
+                    polynomial_flag_expectation_matrix(
+                        loc_radials, tangent_harmonic
+                    )
+                    if loc_radials
+                    else {}
+                )
+            if e1_on("three-point"):
+                # Closed-form (E1) leaves; spin >= 4 admits none at any
+                # degree (weighted zero set: spin >= 3).
+                full_leaf_degrees = list(
+                    range(order % 2, maximum_leaf_degree + 1, 2)
+                )
+                if full_leaf_degrees:
+                    unprojected_matrices[f"flag_{order}"] = (
+                        flag_expectation_matrix(
+                            full_leaf_degrees, tangent_harmonic
+                        )
+                    )
+                radial_source = (
+                    e1_weighted["one_root"]
+                    if e1_weighted is not None
+                    else E1_ONE_ROOT_RADIALS
+                )
+                radials = [
+                    polynomial
+                    for polynomial in radial_source.get(order, [])
                     if max(polynomial) <= maximum_leaf_degree
                 ]
                 if not radials:
@@ -2420,10 +2523,25 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         pair_degrees = list(range(0, maximum_pair_degree + 1, 2))
         label_matrices = empty_type_flag_expectation_matrix(pair_degrees)
         size = len(pair_degrees)
-        if e1_on("four-point"):
-            pair_vectors = [
+        if e1loc_on():
+            loc_vectors = [
                 [combo.get(degree, Fraction(0)) for degree in pair_degrees]
                 for combo in E1_PAIR_COMBOS
+                if max(combo) <= maximum_pair_degree
+            ]
+            localized_projected_matrices["empty_type_flag"] = (
+                conjugate_label_matrices(label_matrices, loc_vectors)
+            )
+        if e1_on("four-point"):
+            unprojected_matrices["empty_type_flag"] = label_matrices
+            combo_source = (
+                e1_weighted["pair_flags"]
+                if e1_weighted is not None
+                else E1_PAIR_COMBOS
+            )
+            pair_vectors = [
+                [combo.get(degree, Fraction(0)) for degree in pair_degrees]
+                for combo in combo_source
                 if max(combo) <= maximum_pair_degree
             ]
             label_matrices = conjugate_label_matrices(
@@ -2496,7 +2614,18 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 multiplier,
             )
             size = len(flag_basis)
+            if e1loc_on():
+                loc_basis, loc_vectors = e1loc_sectors[name]
+                if loc_basis != flag_basis:
+                    raise SystemExit(
+                        "--e1-project-localized basis mismatch for "
+                        f"sector {name}"
+                    )
+                localized_projected_matrices[name] = (
+                    conjugate_label_matrices(label_matrices, loc_vectors)
+                )
             if e1_on("two-root"):
+                unprojected_matrices[name] = label_matrices
                 reference_basis, vectors = e1_sectors[name]
                 if reference_basis != flag_basis:
                     raise SystemExit(
@@ -2578,7 +2707,18 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 multiplier,
             )
             size = len(flag_basis)
+            if e1loc_on():
+                loc_basis, loc_vectors = e1loc_sectors[name]
+                if loc_basis != flag_basis:
+                    raise SystemExit(
+                        "--e1-project-localized basis mismatch for "
+                        f"sector {name}"
+                    )
+                localized_projected_matrices[name] = (
+                    conjugate_label_matrices(label_matrices, loc_vectors)
+                )
             if e1_on("two-root"):
+                unprojected_matrices[name] = label_matrices
                 reference_basis, vectors = e1_sectors[name]
                 if reference_basis != flag_basis:
                     raise SystemExit(
@@ -2722,7 +2862,17 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         spin2_basis = spin2_flag_basis(spin2_degree)
         spin2_matrices = spin2_flag_expectation_matrix(spin2_basis)
         spin2_size = len(spin2_basis)
+        if e1loc_on() and e1loc_spin2 is not None:
+            loc_basis, loc_vectors = e1loc_spin2
+            if loc_basis != spin2_basis:
+                raise SystemExit(
+                    "--e1-project-localized basis mismatch for spin2_flag"
+                )
+            localized_projected_matrices["spin2_flag"] = (
+                conjugate_label_matrices(spin2_matrices, loc_vectors)
+            )
         if e1_on("harmonics") and e1_spin2 is not None:
+            unprojected_matrices["spin2_flag"] = spin2_matrices
             reference_basis, vectors = e1_spin2
             if reference_basis != spin2_basis:
                 raise SystemExit("--e1-project basis mismatch for spin2_flag")
@@ -2754,11 +2904,35 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             if not label_matrices:
                 continue
             size = len(weight_degrees)
-            if e1_on("harmonics"):
-                combos: list[dict[int, Fraction]] = []
+            if e1loc_on():
+                loc_combos: list[dict[int, Fraction]] = []
                 if order == 2:
-                    combos.append({0: Fraction(1)})
-                combos.extend(E1_ONE_ROOT_RADIALS[0])
+                    loc_combos.append({0: Fraction(1)})
+                loc_combos.extend(E1_ONE_ROOT_RADIALS[0])
+                loc_vectors = [
+                    [
+                        combo.get(degree, Fraction(0))
+                        for degree in weight_degrees
+                    ]
+                    for combo in loc_combos
+                    if max(combo) <= maximum_weight_degree
+                ]
+                localized_projected_matrices[f"harmonic_flag_{order}"] = (
+                    conjugate_label_matrices(label_matrices, loc_vectors)
+                )
+            if e1_on("harmonics"):
+                unprojected_matrices[f"harmonic_flag_{order}"] = (
+                    label_matrices
+                )
+                combos: list[dict[int, Fraction]] = []
+                if e1_weighted is not None:
+                    combos.extend(
+                        e1_weighted["harmonic_flag"].get(order, [])
+                    )
+                else:
+                    if order == 2:
+                        combos.append({0: Fraction(1)})
+                    combos.extend(E1_ONE_ROOT_RADIALS[0])
                 weight_vectors = [
                     [combo.get(degree, Fraction(0)) for degree in weight_degrees]
                     for combo in combos
@@ -3192,8 +3366,39 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 )
             return shifted
 
-        localized_blocks = []
+        # The h2-multiplied layer is exempt from the value-level
+        # (E1)/weighted-(E1) projection: build every localized copy from
+        # the *unprojected* matrices, and keep copies of families the
+        # projection dropped entirely (their h2 factor vanishes on the
+        # whole zero set, so they are sharpness-compatible at full size).
+        # Under --e1-project-localized the second-order slackness bases
+        # (unweighted (E1)) replace the unprojected matrices instead.
+        localized_sources: list[tuple[str, dict[Label, np.ndarray]]] = []
+        localized_seen: set[str] = set()
+
+        def localized_source(
+            name: str, fallback: dict[Label, np.ndarray]
+        ) -> dict[Label, np.ndarray]:
+            if name in localized_projected_matrices:
+                return localized_projected_matrices[name]
+            return unprojected_matrices.get(name, fallback)
+
         for name, _, label_matrices in blocks:
+            localized_sources.append(
+                (name, localized_source(name, label_matrices))
+            )
+            localized_seen.add(name)
+        for name, label_matrices in unprojected_matrices.items():
+            if name not in localized_seen:
+                localized_sources.append(
+                    (name, localized_source(name, label_matrices))
+                )
+                localized_seen.add(name)
+        for name, label_matrices in localized_projected_matrices.items():
+            if name not in localized_seen:
+                localized_sources.append((name, label_matrices))
+        localized_blocks = []
+        for name, label_matrices in localized_sources:
             if not label_matrices:
                 continue
             size = next(iter(label_matrices.values())).shape[0]
@@ -4259,6 +4464,17 @@ def parse_args() -> argparse.Namespace:
         help=(
             "comma list of families to project under --e1-project: "
             "three-point,four-point,two-root,harmonics (default: all)"
+        ),
+    )
+    parser.add_argument(
+        "--e1-project-localized",
+        metavar="PROJECTION_JSON",
+        help=(
+            "project the h2-localized copies (--h2-localized-all) of the "
+            "flag-square families by the UNWEIGHTED (E1) bases: "
+            "second-order complementary slackness at the E-zero family "
+            "forces the base value of every h2-multiplied block to "
+            "vanish there (docs/WEIGHTED_E1_NOTE.md)"
         ),
     )
     parser.add_argument("--h2-localized-flags", action="store_true")
