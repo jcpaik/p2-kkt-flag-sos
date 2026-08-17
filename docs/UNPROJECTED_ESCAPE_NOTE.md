@@ -164,3 +164,21 @@ proven candidates: e₅(I−A₂) (graph_5 extension,
 docs/MULTI_WEIGHT_PROGRAM.md), the W-KKT re-encoding, and deeper-K
 fiber-Toeplitz at degree 16 (staged: `deg16_h2w_h2all_toep.dat-s`,
 `sel16_toep_1em4/1em5` — the wall-free deep test, wall ≤ 1.31e−6).
+
+## 6. Consolidated measurements (2026-08-18)
+
+| problem | ε | trace / bound | note |
+|---|---|---|---|
+| deg-16 plain | 1e−4 / 1e−5 | 4073.66 / 14068.66 | 3.45×/decade |
+| deg-16 + Jensen v1 | 1e−4 / 1e−5 | 3752.58 / 8151.85 | **2.17×/decade, exponent 0.34, no deep re-steepening** |
+| deg-14 + e5 cut | dual / 1e−4 | −2.7908758e−5 / 8133.566 | **inert at GMP precision** (double-precision −1.832e−4 was noise); deep 128-bit points unconverged |
+| all-measures cone (proof-carrying) | 1e−3 / 1e−4 | 2366.76 / 13873.30 | 5.86×/decade (exponent 0.77) |
+| deg-16 am le1 (third-order projection) | dual | −4.5762e−3 | projection closed as a bound route |
+
+The compounding frontier: degree 16 × (v2+v3 Jensen/fiber-Toeplitz,
+43 families, K=4 tower) — `deg16_h2w_h2all_toep3.dat-s` staged,
+selectors at 1e−4/1e−5/5e−6 queued.  At degree 14 the cut tower
+saturated below 5e−5; the deg-16+v1 evidence (no re-steepening at
+1e−5) suggests the saturation face recedes with degree; the v3 ladder
+measures whether the law approaches a plateau (= attainment ⇒
+max-margin → rational rounding → verification).
