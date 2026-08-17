@@ -25,7 +25,7 @@ antipodally symmetric probability measure on \(S^2\).
 For a continuous even kernel \(K:[-1,1]\to\mathbb R\), define
 
 \[
-E_K(\mu)
+E(\mu)
 =
 \iint K(x\cdot y)\,d\mu(x)d\mu(y).
 \]
@@ -33,7 +33,7 @@ E_K(\mu)
 The kernel is called **copositive** on \(\mathbb{RP}^2\) if
 
 \[
-E_K(\mu)\ge0
+E(\mu)\ge0
 \]
 
 for every finite nonnegative measure \(\mu\). By homogeneity, it is enough to
@@ -79,7 +79,7 @@ p_j(\mu)=\iint(x\cdot y)^j\,d\mu(x)d\mu(y).
 Equation (2.1) gives
 
 \[
-E_K(\mu)=32p_6-48p_4+20p_2-\frac43.
+E(\mu)=32p_6-48p_4+20p_2-\frac43.
 \tag{3.1}
 \]
 
@@ -105,11 +105,10 @@ h_2=\frac{3p_2-1}{2}=\sum_m|\hat\mu_{2m}|^2
 =\frac32\left\|M_2-\tfrac13I\right\|_F^2\ \ge\ 0.
 \]
 
-The code makes **no isotropy assumption**. It uses the general normalized
-target
+The code makes **no isotropy assumption**. It uses the general target
 
 \[
-T(\mu)=-\frac14+\frac{15}{4}p_2-9p_4+6p_6=\frac{3}{16}E_K(\mu),
+E(\mu)=-\frac43+20p_2-48p_4+32p_6,
 \tag{3.3}
 \]
 
@@ -128,10 +127,10 @@ U_\mu(z)=\int K(z\cdot y)\,d\mu(y).
 Then
 
 \[
-E_K(\mu)=\int U_\mu(x)\,d\mu(x).
+E(\mu)=\int U_\mu(x)\,d\mu(x).
 \]
 
-Suppose \(\mu\) is a global minimizer of \(E_K\) over probability measures.
+Suppose \(\mu\) is a global minimizer of \(E\) over probability measures.
 For a trial point \(z\), consider
 
 \[
@@ -141,14 +140,14 @@ For a trial point \(z\), consider
 Differentiating at \(\varepsilon=0\) gives
 
 \[
-\left.\frac{d}{d\varepsilon}E_K(\mu_\varepsilon)\right|_{\varepsilon=0}
-=2\bigl(U_\mu(z)-E_K(\mu)\bigr).
+\left.\frac{d}{d\varepsilon}E(\mu_\varepsilon)\right|_{\varepsilon=0}
+=2\bigl(U_\mu(z)-E(\mu)\bigr).
 \]
 
 Minimality therefore implies the global first-variation inequality
 
 \[
-q_\mu(z):=U_\mu(z)-E_K(\mu)\ge0
+q_\mu(z):=U_\mu(z)-E(\mu)\ge0
 \qquad\text{for every }z.
 \tag{4.1}
 \]
@@ -340,8 +339,8 @@ sum of squares. Expand every block in the common basis of moment labels.
 
 The primal SDP asks for PSD matrices and free KKT/identity multipliers such
 that every moment coefficient equals the corresponding coefficient of
-\(T\). The dual SDP asks for a formal moment functional satisfying every
-positivity and equality constraint while minimizing \(T\).
+\(E\). The dual SDP asks for a formal moment functional satisfying every
+positivity and equality constraint while minimizing \(E\).
 
 A negative dual optimum means the chosen finite hierarchy has not certified
 zero. A value close to zero is not an exact proof unless a primal

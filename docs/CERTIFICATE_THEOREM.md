@@ -37,10 +37,10 @@ H_\mu(x)\succeq0
 
 for \(\mu\)-almost every \(x\).
 
-In the isotropic branch, define
+In the isotropic branch,
 
 \[
-T(\mu)=1-9p_4+6p_6=\frac{3}{16}E(\mu).
+E(\mu)=\frac{16}{3}-48p_4+32p_6.
 \tag{1.3}
 \]
 
@@ -50,7 +50,7 @@ An exact KKT-infused flag certificate is an identity
 
 \[
 \begin{aligned}
-T(\mu)
+E(\mu)
 ={}&
 \sum_\alpha
 \left\|\Phi_{\alpha,\mu}\right\|_{L^2(\mu^{r_\alpha})}^2
@@ -105,12 +105,7 @@ Each squared norm in (2.1) is nonnegative. Since \(B_\mu(x)\succeq0\) and
 
 Likewise, \(\rho_\mu(z)q_\mu(z)\ge0\) by (1.1). The two equality-multiplier
 integrals vanish by (1.2), and \(\mathcal Z(\mu)=0\) identically. Therefore
-the right side of (2.1) is nonnegative, so \(T(\mu)\ge0\). Equation (1.3)
-then gives
-
-\[
-E(\mu)=\frac{16}{3}T(\mu)\ge0.
-\]
+the right side of (2.1) is nonnegative, so \(E(\mu)\ge0\).
 
 \(\square\)
 
@@ -163,7 +158,7 @@ squares: \(h_2=\sum_m|\hat\mu_{2m}|^2\ge0\) and spin-2 Gram blocks
 containing the deviatoric second moment. However, as recorded in
 [Numerical results](../RESULTS.md), the numerical dual value of the
 non-isotropic hierarchy at degree 14 is approximately
-\(-8.5\times10^{-4}\), far from zero: no such certificate has been found,
+\(-4.5\times10^{-3}\), far from zero: no such certificate has been found,
 and the convex relaxation of the spin-2 sector provably leaks at order
 \(\sqrt{h_2}\) against the linear cost of \(h_2\). Coverage is therefore
 no longer the obstacle; existence of a finite-degree certificate is.
@@ -215,11 +210,11 @@ It may happen that no finite exact identity exists, while for every
 \varepsilon>0\) there is a certificate
 
 \[
-T(\mu)+\varepsilon=C_\varepsilon(\mu),
+E(\mu)+\varepsilon=C_\varepsilon(\mu),
 \]
 
 where \(C_\varepsilon\) is a valid KKT/SOS expression. Letting
-\(\varepsilon\downarrow0\) still proves \(T(\mu)\ge0\), provided the
+\(\varepsilon\downarrow0\) still proves \(E(\mu)\ge0\), provided the
 certificate is valid on the full minimizing class.
 
 Such a family is an asymptotic certificate. Its datum is a convergent family

@@ -8,3 +8,5 @@ __pycache__/
 # Local ChatGPT project context; not part of the public research repository.
 AGENTS.md
 sources/
+sdpa_runs/
+literature/

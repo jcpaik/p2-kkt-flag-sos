@@ -1101,6 +1101,102 @@ def spin2_flag_expectation_matrix(
     }
 
 
+def spin2_operator_gap_matrix(
+    flag_basis: list[tuple[tuple[int, ...], int]],
+    sign: int,
+) -> dict[Label, np.ndarray]:
+    """Localized blocks of the SO(3) operator bound I -+ A_2 >= 0.
+
+    A_2 = int pi_2(rho_x) dmu is an average of orthogonal involutions on
+    the 5-dimensional spin-2 space, so -I <= A_2 <= I for every measure.
+    For spin-2 flag features v_A (harmonic vertex with leaves, as in
+    ``spin2_flag_basis``) the localized Gram
+
+        G_AB = E[v_A]^T (I - sign * A_2) E[v_B]  >=  0
+
+    has invariant entries: with M_x = x x^T - I/3 and a = x.z, b = x'.z,
+    c = x.x', conjugation gives rho_z M_{x'} rho_z = M_{rho_z x'} and
+
+        <M_x, M_{x'}> - <M_x, pi_2(rho_z) M_{x'}> = c^2 - (2ab - c)^2
+                                                  = 4ab(c - ab),
+
+    so the I - A_2 blocks carry the multiplier 4ab(c - ab) on the core
+    (x, x', z) and the I + A_2 blocks carry
+    (c^2 - 1/3) + ((2ab - c)^2 - 1/3).  These blocks are valid for every
+    measure, and I - A_2 is active on the whole zero family with the
+    axial quadrupole as common eigenvector (solve_e1.py Part E), so the
+    multipliers survive sharpness.
+    """
+
+    if sign not in (1, -1):
+        raise ValueError("sign must be +1 (I - A_2) or -1 (I + A_2)")
+    if sign == 1:
+        # c^2 - (2ab - c)^2 = 4 a b c - 4 a^2 b^2
+        multiplier_terms = [
+            (Fraction(4), {"a": 1, "b": 1, "c": 1}),
+            (Fraction(-4), {"a": 2, "b": 2}),
+        ]
+    else:
+        # (c^2 - 1/3) + ((2ab - c)^2 - 1/3)
+        multiplier_terms = [
+            (Fraction(4), {"a": 2, "b": 2}),
+            (Fraction(-4), {"a": 1, "b": 1, "c": 1}),
+            (Fraction(2), {"c": 2}),
+            (Fraction(-2, 3), {}),
+        ]
+
+    size = len(flag_basis)
+    matrices: dict[Label, np.ndarray] = {}
+    for row, (left_leaves, left_pair) in enumerate(flag_basis):
+        for column, (right_leaves, right_pair) in enumerate(flag_basis):
+            left_count = len(left_leaves)
+            right_count = len(right_leaves)
+            # Vertices: 0 = x (left root), 1 = x' (right root), 2 = z,
+            # then left leaves, then right leaves.
+            vertex_count = 3 + left_count + right_count
+            left_offset = 3
+            right_offset = 3 + left_count
+            edge_indices = {
+                edge: index
+                for index, edge in enumerate(graph_edges(vertex_count))
+            }
+            base = [0] * len(edge_indices)
+            for index, power in enumerate(left_leaves):
+                base[edge_indices[(0, left_offset + index)]] += power
+            if left_pair:
+                base[edge_indices[(left_offset, left_offset + 1)]] += left_pair
+            for index, power in enumerate(right_leaves):
+                base[edge_indices[(1, right_offset + index)]] += power
+            if right_pair:
+                base[
+                    edge_indices[(right_offset, right_offset + 1)]
+                ] += right_pair
+            core_edges = {
+                "c": edge_indices[(0, 1)],
+                "a": edge_indices[(0, 2)],
+                "b": edge_indices[(1, 2)],
+            }
+            for coefficient, powers in multiplier_terms:
+                exponent = list(base)
+                for key, power in powers.items():
+                    exponent[core_edges[key]] += power
+                label, reduction_coefficient = graph_expectation_label(
+                    vertex_count,
+                    tuple(exponent),
+                )
+                if label is None or reduction_coefficient == 0:
+                    continue
+                matrix = matrices.setdefault(label, np.zeros((size, size)))
+                matrix[row, column] += float(
+                    coefficient * reduction_coefficient
+                )
+    return {
+        label: matrix
+        for label, matrix in matrices.items()
+        if np.max(np.abs(matrix)) > 1e-13
+    }
+
+
 def h2_localized_flag_expectation_matrix(
     leaf_degrees: list[int],
     tangent_harmonic: Polynomial,
@@ -1725,6 +1821,113 @@ def flag_expectation_matrix(
     return matrices
 
 
+# (E1)-admissible one-root leaf radials, from solve_e1.py: the certificate
+# leaves forced by complementary slackness against the pole-equator zero
+# family.  Keys are O(2) spin orders; each radial is {degree: coefficient}.
+# Orders >= 4 admit no leaf at any degree.
+E1_ONE_ROOT_RADIALS: dict[int, list[dict[int, Fraction]]] = {
+    0: [
+        {0: Fraction(-2, 3), 2: Fraction(2)},  # T2 + 1/3
+        {0: Fraction(-2, 3), 2: Fraction(18), 4: Fraction(-48), 6: Fraction(32)},  # T6 + 1/3
+    ],
+    1: [
+        {1: Fraction(1)},  # t   (derivative of T2 + 1/3)
+        {1: Fraction(6), 3: Fraction(-32), 5: Fraction(32)},  # U5 (derivative of T6 + 1/3)
+    ],
+    2: [
+        {0: Fraction(1)},
+        {0: Fraction(1), 2: Fraction(-8), 4: Fraction(16)},  # (4t^2 - 1)^2
+    ],
+    3: [{3: Fraction(1)}],
+}
+
+# (E1)-admissible weight combinations for the unrooted pair flags: only
+# h_2 = (3 p_2 - 1)/2 and the target itself vanish on the zero family.
+E1_PAIR_COMBOS: list[dict[int, Fraction]] = [
+    {0: Fraction(-1), 2: Fraction(3)},
+    {0: Fraction(-1, 4), 2: Fraction(15, 4), 4: Fraction(-9), 6: Fraction(6)},
+]
+
+
+def polynomial_flag_expectation_matrix(
+    leaf_polynomials: list[dict[int, Fraction]],
+    tangent_harmonic: Polynomial,
+) -> dict[Label, np.ndarray]:
+    """One-root flag block over polynomial (not monomial) leaf radials."""
+
+    size = len(leaf_polynomials)
+    matrices: dict[Label, np.ndarray] = {}
+    for row, left in enumerate(leaf_polynomials):
+        for column, right in enumerate(leaf_polynomials):
+            for left_degree, left_coefficient in left.items():
+                for right_degree, right_coefficient in right.items():
+                    for coefficient, exponent in tangent_harmonic:
+                        shifted = (
+                            exponent[0] + left_degree,
+                            exponent[1],
+                            exponent[2] + right_degree,
+                        )
+                        label, reduction_coefficient = expectation_label(shifted)
+                        if label is None or reduction_coefficient == 0:
+                            continue
+                        matrix = matrices.setdefault(
+                            label, np.zeros((size, size))
+                        )
+                        matrix[row, column] += float(
+                            coefficient
+                            * reduction_coefficient
+                            * left_coefficient
+                            * right_coefficient
+                        )
+    return matrices
+
+
+def load_e1_projection(path: str):
+    """Read the admissible-basis file written by solve_e1.py."""
+
+    import json
+
+    with open(path) as handle:
+        data = json.load(handle)
+    sectors = {}
+    for name, entry in data["sectors"].items():
+        basis = [tuple(exponent) for exponent in entry["basis"]]
+        vectors = [
+            [Fraction(value) for value in vector]
+            for vector in entry["vectors"]
+        ]
+        sectors[name] = (basis, vectors)
+    spin2 = None
+    if data.get("spin2_flag") is not None:
+        entry = data["spin2_flag"]
+        basis = [(tuple(leaves), pair) for leaves, pair in entry["basis"]]
+        vectors = [
+            [Fraction(value) for value in vector]
+            for vector in entry["vectors"]
+        ]
+        spin2 = (basis, vectors)
+    return int(data["solver_degree"]), sectors, spin2
+
+
+def conjugate_label_matrices(
+    matrices: dict[Label, np.ndarray],
+    vectors: list[list[Fraction]],
+) -> dict[Label, np.ndarray]:
+    """Congruence-transform label matrices onto the span of `vectors`."""
+
+    if not vectors:
+        return {}
+    projection = np.array(
+        [[float(value) for value in vector] for vector in vectors]
+    ).T
+    result: dict[Label, np.ndarray] = {}
+    for label, matrix in matrices.items():
+        transformed = projection.T @ matrix @ projection
+        if np.max(np.abs(transformed)) > 1e-14:
+            result[label] = transformed
+    return result
+
+
 ONE: Polynomial = [(Fraction(1), (0, 0, 0))]
 GRAM_DETERMINANT: Polynomial = [
     (Fraction(1), (0, 0, 0)),
@@ -2063,14 +2266,29 @@ def export_sdpa_problem(
 
 
 def solve(args: argparse.Namespace) -> dict[str, object]:
-    # T = (3/16) E = -1/4 + (15/4) p2 - 9 p4 + 6 p6, with no isotropy
-    # substitution: p2 = E[(X.Y)^2] stays a genuine moment variable.
+    # E = iint K(x.y) dmu dmu = -4/3 + 20 p2 - 48 p4 + 32 p6, with no
+    # isotropy substitution: p2 = E[(X.Y)^2] stays a genuine moment
+    # variable.
     target = {
-        ("constant",): -0.25 + args.target_epsilon,
-        ("pair", 2): 3.75,
-        ("pair", 4): -9.0,
-        ("pair", 6): 6.0,
+        ("constant",): -4.0 / 3.0 + args.target_epsilon,
+        ("pair", 2): 20.0,
+        ("pair", 4): -48.0,
+        ("pair", 6): 32.0,
     }
+    if args.h2_weighted_target:
+        # Rational-certificate target h2*E with h2 = (3 p2 - 1)/2 >= 0.
+        # Anisotropic measures (h2 > 0) are dense and E is continuous, so
+        # h2*E >= 0 for every measure implies E >= 0 for every measure.
+        # Product labels linearize p2*pj as genuine 4-sample moments.
+        target = {
+            ("constant",): 2.0 / 3.0 + args.target_epsilon,
+            ("pair", 2): -12.0,
+            ("pair", 4): 24.0,
+            ("pair", 6): -16.0,
+            multiply_labels(("pair", 2), ("pair", 2)): 30.0,
+            multiply_labels(("pair", 2), ("pair", 4)): -72.0,
+            multiply_labels(("pair", 2), ("pair", 6)): 48.0,
+        }
     gradient, hessian, perpendicular_hessian = kernel_polynomials()
     (
         four_point_parallel_hessian,
@@ -2084,6 +2302,26 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
     blocks: list[tuple[str, cp.Variable, dict[Label, np.ndarray]]] = []
     free_blocks: list[tuple[str, cp.Variable, dict[Label, np.ndarray]]] = []
     constraints: list[cp.Constraint] = []
+
+    e1_sectors = None
+    e1_spin2 = None
+    e1_families: set[str] = set()
+    if getattr(args, "e1_project", None):
+        projection_degree, e1_sectors, e1_spin2 = load_e1_projection(
+            args.e1_project
+        )
+        if projection_degree != args.degree:
+            raise SystemExit(
+                f"--e1-project file is for degree {projection_degree}, "
+                f"but this run is degree {args.degree}"
+            )
+        selected = getattr(args, "e1_project_families", "all")
+        e1_families = {name.strip() for name in selected.split(",")}
+        if "all" in e1_families:
+            e1_families = {"three-point", "four-point", "two-root", "harmonics"}
+
+    def e1_on(family: str) -> bool:
+        return e1_sectors is not None and family in e1_families
 
     module_terms: list[tuple[str, Polynomial, int]] = []
     if not args.no_pointwise_sos:
@@ -2108,6 +2346,31 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             # Every entry has degree at most degree.  Leaf parity must match
             # the O(2) weight for antipodally invariant (projective) flags.
             maximum_leaf_degree = (args.degree - 2 * order) // 2
+            if e1_on("three-point"):
+                # Closed-form (E1) leaves; spin >= 4 admits none at any degree.
+                radials = [
+                    polynomial
+                    for polynomial in E1_ONE_ROOT_RADIALS.get(order, [])
+                    if max(polynomial) <= maximum_leaf_degree
+                ]
+                if not radials:
+                    continue
+                variable = cp.Variable(
+                    (len(radials), len(radials)),
+                    symmetric=True,
+                    name=f"flag_{order}",
+                )
+                blocks.append(
+                    (
+                        f"flag_{order}",
+                        variable,
+                        polynomial_flag_expectation_matrix(
+                            radials, tangent_harmonic
+                        ),
+                    )
+                )
+                constraints.append(variable >> 0)
+                continue
             leaf_degrees = list(
                 range(order % 2, maximum_leaf_degree + 1, 2)
             )
@@ -2155,19 +2418,26 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
     if args.four_point_flags:
         maximum_pair_degree = args.degree // 2
         pair_degrees = list(range(0, maximum_pair_degree + 1, 2))
-        variable = cp.Variable(
-            (len(pair_degrees), len(pair_degrees)),
-            symmetric=True,
-            name="empty_type_flag",
-        )
-        blocks.append(
-            (
-                "empty_type_flag",
-                variable,
-                empty_type_flag_expectation_matrix(pair_degrees),
+        label_matrices = empty_type_flag_expectation_matrix(pair_degrees)
+        size = len(pair_degrees)
+        if e1_on("four-point"):
+            pair_vectors = [
+                [combo.get(degree, Fraction(0)) for degree in pair_degrees]
+                for combo in E1_PAIR_COMBOS
+                if max(combo) <= maximum_pair_degree
+            ]
+            label_matrices = conjugate_label_matrices(
+                label_matrices, pair_vectors
             )
-        )
-        constraints.append(variable >> 0)
+            size = len(pair_vectors)
+        if size and label_matrices:
+            variable = cp.Variable(
+                (size, size),
+                symmetric=True,
+                name="empty_type_flag",
+            )
+            blocks.append(("empty_type_flag", variable, label_matrices))
+            constraints.append(variable >> 0)
 
     if args.two_root_flags:
         flag_degree = args.degree // 2
@@ -2221,21 +2491,29 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         for name, flag_basis, multiplier in sectors:
             if not flag_basis:
                 continue
+            label_matrices = two_root_flag_expectation_matrix(
+                flag_basis,
+                multiplier,
+            )
+            size = len(flag_basis)
+            if e1_on("two-root"):
+                reference_basis, vectors = e1_sectors[name]
+                if reference_basis != flag_basis:
+                    raise SystemExit(
+                        f"--e1-project basis mismatch for sector {name}"
+                    )
+                if not vectors:
+                    continue
+                label_matrices = conjugate_label_matrices(
+                    label_matrices, vectors
+                )
+                size = len(vectors)
             variable = cp.Variable(
-                (len(flag_basis), len(flag_basis)),
+                (size, size),
                 symmetric=True,
                 name=name,
             )
-            blocks.append(
-                (
-                    name,
-                    variable,
-                    two_root_flag_expectation_matrix(
-                        flag_basis,
-                        multiplier,
-                    ),
-                )
-            )
+            blocks.append((name, variable, label_matrices))
             constraints.append(variable >> 0)
 
         localizing_degree = (args.degree - 2) // 2
@@ -2295,21 +2573,29 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         for name, flag_basis, multiplier in localizing_sectors:
             if not flag_basis:
                 continue
+            label_matrices = two_root_flag_expectation_matrix(
+                flag_basis,
+                multiplier,
+            )
+            size = len(flag_basis)
+            if e1_on("two-root"):
+                reference_basis, vectors = e1_sectors[name]
+                if reference_basis != flag_basis:
+                    raise SystemExit(
+                        f"--e1-project basis mismatch for sector {name}"
+                    )
+                if not vectors:
+                    continue
+                label_matrices = conjugate_label_matrices(
+                    label_matrices, vectors
+                )
+                size = len(vectors)
             variable = cp.Variable(
-                (len(flag_basis), len(flag_basis)),
+                (size, size),
                 symmetric=True,
                 name=name,
             )
-            blocks.append(
-                (
-                    name,
-                    variable,
-                    two_root_flag_expectation_matrix(
-                        flag_basis,
-                        multiplier,
-                    ),
-                )
-            )
+            blocks.append((name, variable, label_matrices))
             constraints.append(variable >> 0)
 
     if args.max_flag_arity >= 5:
@@ -2411,6 +2697,10 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
     if args.harmonics:
         # Degree 2 encodes the isotropy deficit as a flag square:
         # E[P_2(X.Y)] = (3 p2 - 1)/2 = sum_m |mu-hat(2,m)|^2 >= 0.
+        # These 1x1 blocks are kept under --e1-project even though g_l with
+        # l >= 4 cannot appear in a certificate sharp at the zero family
+        # (their multipliers may sit at zero); as valid scalar inequalities
+        # they keep the epsilon > 0 dual bounded.
         for degree in range(2, args.degree + 1, 2):
             variable = cp.Variable(
                 (1, 1),
@@ -2431,9 +2721,16 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         spin2_degree = (args.degree - 2) // 2
         spin2_basis = spin2_flag_basis(spin2_degree)
         spin2_matrices = spin2_flag_expectation_matrix(spin2_basis)
-        if spin2_matrices:
+        spin2_size = len(spin2_basis)
+        if e1_on("harmonics") and e1_spin2 is not None:
+            reference_basis, vectors = e1_spin2
+            if reference_basis != spin2_basis:
+                raise SystemExit("--e1-project basis mismatch for spin2_flag")
+            spin2_matrices = conjugate_label_matrices(spin2_matrices, vectors)
+            spin2_size = len(vectors)
+        if spin2_matrices and spin2_size:
             variable = cp.Variable(
-                (len(spin2_basis), len(spin2_basis)),
+                (spin2_size, spin2_size),
                 symmetric=True,
                 name="spin2_flag",
             )
@@ -2443,6 +2740,8 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         # Spin-l Gram blocks of harmonic-weighted unrooted pair flags.
         # The l = 2 block replaces the dropped isotropy contraction by
         # genuine flag squares of the deviatoric second-moment tensor.
+        # Under --e1-project the admissible weights are the (E1) spin-0
+        # radials (T2 + 1/3 and T6 + 1/3), plus the constant for l = 2.
         for order in range(2, args.degree + 1, 2):
             maximum_weight_degree = (args.degree - order) // 2
             weight_degrees = list(range(0, maximum_weight_degree + 1, 2))
@@ -2454,8 +2753,27 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             )
             if not label_matrices:
                 continue
+            size = len(weight_degrees)
+            if e1_on("harmonics"):
+                combos: list[dict[int, Fraction]] = []
+                if order == 2:
+                    combos.append({0: Fraction(1)})
+                combos.extend(E1_ONE_ROOT_RADIALS[0])
+                weight_vectors = [
+                    [combo.get(degree, Fraction(0)) for degree in weight_degrees]
+                    for combo in combos
+                    if max(combo) <= maximum_weight_degree
+                ]
+                if not weight_vectors:
+                    continue
+                label_matrices = conjugate_label_matrices(
+                    label_matrices, weight_vectors
+                )
+                if not label_matrices:
+                    continue
+                size = len(weight_vectors)
             variable = cp.Variable(
-                (len(weight_degrees), len(weight_degrees)),
+                (size, size),
                 symmetric=True,
                 name=f"harmonic_flag_{order}",
             )
@@ -2464,6 +2782,79 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                     f"harmonic_flag_{order}",
                     variable,
                     label_matrices,
+                )
+            )
+            constraints.append(variable >> 0)
+
+    if args.spin2_operator_gap:
+        gap_degree = (args.degree - 4) // 2
+        gap_basis = spin2_flag_basis(gap_degree)
+        for name, sign in (("spin2_gap_minus", 1), ("spin2_gap_plus", -1)):
+            label_matrices = spin2_operator_gap_matrix(gap_basis, sign)
+            if not label_matrices:
+                continue
+            variable = cp.Variable(
+                (len(gap_basis), len(gap_basis)),
+                symmetric=True,
+                name=name,
+            )
+            blocks.append((name, variable, label_matrices))
+            constraints.append(variable >> 0)
+
+    if args.gap_scalar_cuts:
+        # Elementary symmetric invariants of the gap operator B = I - A2,
+        # A2 = int pi_2(rho_x) dmu, rho_x = 2 x x^T - I: e_k(B) >= 0 is a
+        # valid scalar consequence of the operator bound I - A2 >= 0
+        # (sums of k-fold products of nonnegative eigenvalues).  Exact
+        # label expansions via tr(A2^k) = E[chi2(rho_{x1}..rho_{xk})],
+        # chi2(R) = (tr R)^2 - tr R - 1, and Newton's identities
+        # (tr B = 4 identically, so e_1 is trivial).  The projected-dual
+        # g4 escape ray pairs at -9.79 / -19.26 / -5.85 against e_2, e_3,
+        # e_4, so each cut individually makes that ray infeasible.
+        gap_cut_expansions: dict[str, dict[Label, float]] = {
+            "gap_cut_e2": {
+                ("constant",): 6.0,
+                ("pair", 2): 6.0,
+                ("pair", 4): -8.0,
+            },
+            "gap_cut_e3": {
+                ("constant",): 8.0 / 3.0,
+                ("pair", 2): 32.0,
+                ("pair", 4): -32.0,
+                ("triangle", 1, 1, 1): -40.0 / 3.0,
+                ("triangle", 0, 2, 2): -32.0,
+                ("triangle", 1, 1, 3): 64.0,
+                ("triangle", 2, 2, 2): -64.0 / 3.0,
+            },
+            "gap_cut_e4": {
+                ("constant",): -22.0 / 3.0,
+                ("pair", 2): 92.0,
+                ("pair", 4): -48.0,
+                ("triangle", 1, 1, 1): -304.0 / 3.0,
+                ("triangle", 0, 2, 2): -128.0,
+                ("triangle", 1, 1, 3): 256.0,
+                ("triangle", 2, 2, 2): -256.0 / 3.0,
+                ("product", ("pair", 2), ("pair", 2)): -6.0,
+                ("product", ("pair", 2), ("pair", 4)): -48.0,
+                ("product", ("pair", 4), ("pair", 4)): 32.0,
+                ("graph_4", 0, 1, 1, 1, 1, 0): 44.0,
+                ("graph_4", 0, 0, 2, 1, 1, 1): 192.0,
+                ("graph_4", 0, 1, 1, 1, 3, 0): -128.0,
+                ("graph_4", 0, 1, 1, 1, 1, 2): -256.0,
+                ("graph_4", 0, 1, 1, 2, 2, 1): 256.0,
+                ("graph_4", 0, 2, 2, 2, 2, 0): -64.0,
+            },
+        }
+        for name, expansion in gap_cut_expansions.items():
+            variable = cp.Variable((1, 1), symmetric=True, name=name)
+            blocks.append(
+                (
+                    name,
+                    variable,
+                    {
+                        label: np.array([[coefficient]])
+                        for label, coefficient in expansion.items()
+                    },
                 )
             )
             constraints.append(variable >> 0)
@@ -2762,6 +3153,92 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         if rank_relations
         else None
     )
+
+    if args.h2_localized_all:
+        # Multiply every PSD family and every scalar equality family by the
+        # nonnegative moment quantity h2 = (3 p2 - 1)/2 over two fresh
+        # samples.  Disconnected samples factor for measures, so
+        # h2-multiplied blocks stay PSD and multiplied relations stay
+        # equalities.  Unlike a pure p2 shift (which touches only fresh
+        # product labels and is vacuous for the dual bound), the -1/2
+        # constant part makes every localized block couple the product
+        # labels of the h2-weighted target to their base factors.
+        pair2 = ("pair", 2)
+
+        def h2_shift_matrices(
+            label_matrices: dict[Label, np.ndarray],
+        ) -> dict[Label, np.ndarray]:
+            shifted: dict[Label, np.ndarray] = {}
+
+            def accumulate(label: Label, matrix: np.ndarray) -> None:
+                if label in shifted:
+                    shifted[label] = shifted[label] + matrix
+                else:
+                    shifted[label] = matrix
+
+            for label, matrix in label_matrices.items():
+                accumulate(multiply_labels(label, pair2), 1.5 * matrix)
+                accumulate(label, -0.5 * matrix)
+            return shifted
+
+        def p2_shift_relation(
+            relation: dict[Label, float],
+        ) -> dict[Label, float]:
+            shifted: dict[Label, float] = {}
+            for label, coefficient in relation.items():
+                shifted_label = multiply_labels(label, pair2)
+                shifted[shifted_label] = (
+                    shifted.get(shifted_label, 0.0) + coefficient
+                )
+            return shifted
+
+        localized_blocks = []
+        for name, _, label_matrices in blocks:
+            if not label_matrices:
+                continue
+            size = next(iter(label_matrices.values())).shape[0]
+            localized_variable = cp.Variable(
+                (size, size), symmetric=True, name=f"h2loc_{name}"
+            )
+            localized_blocks.append(
+                (
+                    f"h2loc_{name}",
+                    localized_variable,
+                    h2_shift_matrices(label_matrices),
+                )
+            )
+            constraints.append(localized_variable >> 0)
+        blocks.extend(localized_blocks)
+
+        gradient_relations = gradient_relations + [
+            (10000 + index, p2_shift_relation(relation))
+            for index, relation in gradient_relations
+        ]
+        potential_relations = potential_relations + [
+            (10000 + index, p2_shift_relation(relation))
+            for index, relation in potential_relations
+        ]
+        rank_relations = rank_relations + [
+            (10000 + index, p2_shift_relation(relation))
+            for index, relation in rank_relations
+        ]
+        gradient_coefficients = (
+            cp.Variable(len(gradient_relations), name="gradient_coefficients")
+            if gradient_relations
+            else None
+        )
+        potential_coefficients = (
+            cp.Variable(
+                len(potential_relations), name="potential_coefficients"
+            )
+            if potential_relations
+            else None
+        )
+        rank_coefficients = (
+            cp.Variable(len(rank_relations), name="rank_coefficients")
+            if rank_relations
+            else None
+        )
 
     labels = set(target)
     for _, _, label_matrices in blocks:
@@ -3116,6 +3593,101 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             "block_checks": block_checks,
             "free_checks": free_checks,
             "relation_checks": relation_checks,
+        }
+
+    if args.find_ray:
+        # Least-norm improving ray of the moment problem: a direction of
+        # pseudo-moments with zero constant coordinate, all PSD block
+        # pairings preserved, all equalities annihilated, and target
+        # pairing -1.  Feasible iff the dual is unbounded; the minimizer
+        # is the canonical escape direction (Y_0 proxy on the moment side).
+        label_indices = {
+            label: index for index, label in enumerate(ordered_labels)
+        }
+        ray_moments = cp.Variable(len(ordered_labels), name="ray_moments")
+        ray_constraints: list[cp.Constraint] = []
+        for _, _, label_matrices in blocks:
+            if not label_matrices:
+                continue
+            raw_block_scale = max(
+                np.max(np.abs(matrix)) for matrix in label_matrices.values()
+            )
+            block_scale = raw_block_scale if args.scale_constraints else 1.0
+            matrix = sum(
+                ray_moments[label_indices[label]]
+                * (coefficient_matrix / block_scale)
+                for label, coefficient_matrix in label_matrices.items()
+            )
+            ray_constraints.append(matrix >> 0)
+        for _, _, label_matrices in free_blocks:
+            matrix = sum(
+                ray_moments[label_indices[label]] * coefficient_matrix
+                for label, coefficient_matrix in label_matrices.items()
+            )
+            ray_constraints.append(matrix == 0)
+        for _, relation in (
+            gradient_relations + potential_relations + rank_relations
+        ):
+            relation_scale = (
+                max(abs(coefficient) for coefficient in relation.values())
+                if args.scale_constraints
+                else 1.0
+            )
+            ray_constraints.append(
+                sum(
+                    (coefficient / relation_scale)
+                    * ray_moments[label_indices[label]]
+                    for label, coefficient in relation.items()
+                )
+                == 0
+            )
+        ray_constraints.append(
+            ray_moments[label_indices[("constant",)]] == 0
+        )
+        ray_constraints.append(
+            sum(
+                coefficient * ray_moments[label_indices[label]]
+                for label, coefficient in target.items()
+            )
+            == -1
+        )
+        ray_problem = cp.Problem(
+            cp.Minimize(cp.sum_squares(ray_moments)),
+            ray_constraints,
+        )
+        try:
+            ray_value = ray_problem.solve(
+                solver="MOSEK",
+                verbose=args.verbose,
+                mosek_params={
+                    "MSK_DPAR_INTPNT_CO_TOL_PFEAS": args.tolerance,
+                    "MSK_DPAR_INTPNT_CO_TOL_DFEAS": args.tolerance,
+                    "MSK_DPAR_INTPNT_CO_TOL_REL_GAP": args.tolerance,
+                },
+            )
+        except cp.error.SolverError:
+            ray_value = ray_problem.solve(
+                solver="CLARABEL",
+                verbose=args.verbose,
+            )
+        ray_values = {}
+        if ray_moments.value is not None:
+            ray_values = {
+                str(label): float(ray_moments.value[index])
+                for index, label in enumerate(ordered_labels)
+                if abs(ray_moments.value[index]) > 1e-7
+            }
+        return {
+            "status": ray_problem.status,
+            "squared_norm": None if ray_value is None else float(ray_value),
+            "degree": args.degree,
+            "labels": len(ordered_labels),
+            "ray": dict(
+                sorted(
+                    ray_values.items(),
+                    key=lambda item: -abs(item[1]),
+                )
+            ),
         }
 
     if args.find_face:
@@ -3673,6 +4245,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient", action="store_true")
     parser.add_argument("--hessian", action="store_true")
     parser.add_argument("--three-point-flags", action="store_true")
+    parser.add_argument(
+        "--e1-project",
+        metavar="PROJECTION_JSON",
+        help=(
+            "restrict every flag-square family to its (E1)-admissible "
+            "subspace (file written by solve_e1.py --export-projection)"
+        ),
+    )
+    parser.add_argument(
+        "--e1-project-families",
+        default="all",
+        help=(
+            "comma list of families to project under --e1-project: "
+            "three-point,four-point,two-root,harmonics (default: all)"
+        ),
+    )
     parser.add_argument("--h2-localized-flags", action="store_true")
     parser.add_argument("--four-point-flags", action="store_true")
     parser.add_argument("--two-root-flags", action="store_true")
@@ -3694,10 +4282,39 @@ def parse_args() -> argparse.Namespace:
         default="free",
     )
     parser.add_argument("--target-epsilon", type=float, default=0.0)
+    parser.add_argument(
+        "--h2-localized-all",
+        action="store_true",
+        help=(
+            "add h2-multiplied copies of every PSD block and "
+            "p2-multiplied copies of every scalar equality family: the "
+            "full localized quadratic module for --h2-weighted-target"
+        ),
+    )
+    parser.add_argument(
+        "--h2-weighted-target",
+        action="store_true",
+        help=(
+            "replace the target E by h2*E with h2 = (3 p2 - 1)/2; a "
+            "certificate for h2*E >= 0 proves E >= 0 by density of "
+            "anisotropic measures"
+        ),
+    )
     parser.add_argument("--output")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--dual", action="store_true")
     parser.add_argument("--find-face", action="store_true")
+    parser.add_argument("--find-ray", action="store_true")
+    parser.add_argument("--spin2-operator-gap", action="store_true")
+    parser.add_argument(
+        "--gap-scalar-cuts",
+        action="store_true",
+        help=(
+            "add the scalar cuts e_k(I - A2) >= 0, k = 2, 3, 4, as 1x1 "
+            "blocks; each pairs strictly negatively with the projected "
+            "g4 escape ray"
+        ),
+    )
     parser.add_argument("--box-bounds", action="store_true")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--scale-constraints", action="store_true")

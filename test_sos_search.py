@@ -151,10 +151,10 @@ def test_rank_relations_vanish_on_onb():
 
 def test_general_target_vanishes_on_onb():
     target = (
-        Fraction(-1, 4)
-        + Fraction(15, 4) * search.onb_label_value(("pair", 2))
-        - 9 * search.onb_label_value(("pair", 4))
-        + 6 * search.onb_label_value(("pair", 6))
+        Fraction(-4, 3)
+        + 20 * search.onb_label_value(("pair", 2))
+        - 48 * search.onb_label_value(("pair", 4))
+        + 32 * search.onb_label_value(("pair", 6))
     )
     assert target == 0
 

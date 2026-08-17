@@ -1,5 +1,12 @@
 # MOSEK search for the KKT/flag certificate
 
+**Normalization note (2026-08-17).** The solver target was changed from the
+legacy (3/16)E to E itself. Bounds in this file have been converted
+(legacy × 16/3). Artifacts in `sdpa_runs/` exported before this date —
+problem files, result files, selector traces, and ray data — remain in the
+legacy scale: convert a legacy bound by ×16/3; per-decade trace-growth
+ratios and ray-pairing signs are scale-free.
+
 ## Outcome
 
 No exact SOS certificate for equation (12) was found, either with or
@@ -20,11 +27,11 @@ copositivity.
 In the isotropic branch,
 
 ```text
-T = 1 - 9 p4 + 6 p6 = (3/16) E,
+E = 16/3 - 48 p4 + 32 p6,
 ```
 
 where `p4 = E[(X.Y)^4]` and `p6 = E[(X.Y)^6]`.  The SDP minimizes
-the formal expectation of `T`.  A value below zero is a relaxation gap, not a
+the formal expectation of `E`.  A value below zero is a relaxation gap, not a
 counterexample measure.
 
 ## Certificate cone encoded in `sos_search.py`
@@ -46,7 +53,7 @@ The rank identities are essential.  Without them the degree-14 relaxation has
 a conspicuous pseudo-solution near
 
 ```text
-p4 = 2/7,  p6 = 20/77,  T = -1/77.
+p4 = 2/7,  p6 = 20/77,  E = -16/231.
 ```
 
 That pseudo-solution is not evidence of an actual measure.
@@ -55,12 +62,12 @@ That pseudo-solution is not evidence of an actual measure.
 
 Using the full valid hierarchy without the diagnostic box cuts:
 
-| total degree | formal labels | MOSEK lower bound for `T` |
+| total degree | formal labels | MOSEK lower bound for `E` |
 |---:|---:|---:|
-| 12 | 172 | -0.0019132779818384904 |
-| 14 | 399 | -0.0010936259535694326 |
-| 16 | 635 | -0.0006075411462358460 |
-| 18 | 1224 | -0.0001659561850924085 |
+| 12 | 172 | -0.010204149236471949 |
+| 14 | 399 | -0.0058326717523703072 |
+| 16 | 635 | -0.003240219446591179 |
+| 18 | 1224 | -0.0008850996538261787 |
 
 Example:
 
@@ -105,7 +112,7 @@ table above.
 The computational evidence suggests convergence toward zero, but it does not
 replace the missing analytic step.  A proof still needs one of:
 
-1. a finite degree at which the exact primal cone contains `T`;
+1. a finite degree at which the exact primal cone contains `E`;
 2. a closed-form family of certificates whose error tends to zero;
 3. an independent rigidity/classification argument for the residual KKT
    pseudo-moment branch.
@@ -127,16 +134,16 @@ the solver reaches its singular accuracy floor:
 
 | degree 16 flag layer | reported dual objective |
 |---|---:|
-| selected four-point hierarchy | -0.0006075411462358460 |
-| five-point star flags | -0.0004403048051331293 |
-| six-point star flags | -0.0003577419200269105 |
+| selected four-point hierarchy | -0.003240219446591179 |
+| five-point star flags | -0.002348292294043356 |
+| six-point star flags | -0.001907956906810189 |
 
 The strongest numerical result came from degree 14 with five-point
 root-weighted flags and root-factor degree 2.  After rescaling mathematically
 equivalent constraints, MOSEK reported
 
 ```text
-T >= -4.778814766126516e-8
+E >= -2.548701208600809e-7
 ```
 
 with maximum free-equality residual `2.66e-9`, maximum scalar-relation
@@ -219,8 +226,8 @@ python3 sos_search.py \
 
 The isotropy relation `E[XX^T] = I/3` was removed from the moment reducer:
 degree-two sampled vertices are retained in canonical labels, `p2` is a
-genuine moment variable, and the target is the general normalization
-`T = -1/4 + (15/4) p2 - 9 p4 + 6 p6 = (3/16) E`.  The isotropy deficit is
+genuine moment variable, and the target is the energy itself,
+`E = -4/3 + 20 p2 - 48 p4 + 32 p6`.  The isotropy deficit is
 carried by flag squares: the scalar harmonic block
 `h2 = (3 p2 - 1)/2 >= 0` and a spin-2 Gram block whose basis contains the
 deviatoric second moment `D` together with one- and two-leaf spin-2 flags.
@@ -231,20 +238,20 @@ regeneralized: the energy expansion is
 is exact: target 0, worst block eigenvalue `-1.1e-13`, all KKT/rank
 identities vanish.
 
-MOSEK dual bounds for `T` (tolerance 1e-8/1e-9, scaled constraints):
+MOSEK dual bounds for `E` (tolerance 1e-8/1e-9, scaled constraints):
 
 | configuration | labels | bound |
 |---|---:|---:|
-| degree 12, four-point | 308 | -3.34e-3 |
-| degree 14, four-point | 614 | -8.76e-4 |
-| degree 14, four-point + spin-2 | 668 | -8.42e-4 |
-| degree 14, five-point weighted | 1183 | -9.16e-4 |
-| degree 14, five-point + Hessian arity 5 | 1187 | -9.36e-4 |
-| degree 14, five-point + rank matrices | 1194 | -8.46e-4 |
-| degree 14, five-point + rank + spin-2 | 1231 | -8.95e-4 |
-| degree 14, six-point star | 724 | -8.94e-4 |
-| degree 14, six-point root-weighted (factor degree 1) | 1834 | -9.17e-4 |
-| degree 14, five-point + h2-localized flags | 1232 | -1.00e-3 |
+| degree 12, four-point | 308 | -1.78e-2 |
+| degree 14, four-point | 614 | -4.67e-3 |
+| degree 14, four-point + spin-2 | 668 | -4.49e-3 |
+| degree 14, five-point weighted | 1183 | -4.885e-3 |
+| degree 14, five-point + Hessian arity 5 | 1187 | -4.99e-3 |
+| degree 14, five-point + rank matrices | 1194 | -4.512e-3 |
+| degree 14, five-point + rank + spin-2 | 1231 | -4.77e-3 |
+| degree 14, six-point star | 724 | -4.77e-3 |
+| degree 14, six-point root-weighted (factor degree 1) | 1834 | -4.89e-3 |
+| degree 14, five-point + h2-localized flags | 1232 | -5.33e-3 |
 | degree 16, four-point | 920 | not converged |
 | degree 16, five-point weighted | 2580 | not converged |
 | degree 18, four-point | 1629 | not converged |
@@ -258,13 +265,13 @@ terminate, but only to `~2e-6` relation residuals:
 
 | four-point + Jacobi | labels | bound |
 |---|---:|---:|
-| degree 14 (tol 1e-9) | 614 | -9.16e-4 |
-| degree 16 (tol 1e-8) | 1036 | -1.22e-3 |
-| degree 18 (tol 1e-8) | 1855 | -1.16e-3 |
+| degree 14 (tol 1e-9) | 614 | -4.885e-3 |
+| degree 16 (tol 1e-8) | 1036 | -6.51e-3 |
+| degree 18 (tol 1e-8) | 1855 | -6.19e-3 |
 
 The degree-16/18 values sit *below* the degree-14 value, violating the
 monotonicity of the true optima; the achievable objective accuracy at
-those sizes is therefore no better than `~1e-4`, which is exactly the
+those sizes is therefore no better than `~5e-4`, which is exactly the
 scale of the differences in question.  MOSEK's solve-form and tolerance
 parameters produce bit-identical stalls without equilibration.  Within
 double-precision interior-point arithmetic, the degree axis of the
@@ -284,11 +291,11 @@ each direction is normalized exactly, and all data are written as
 
 | degree | m | SDPA-GMP bound | ratio to previous |
 |---:|---:|---:|---:|
-| 12 | 202 | -3.0548e-3 | |
-| 14 | 396 | -8.4105e-4 | 0.275 |
-| 16 | 623 | -1.4385e-4 | 0.171 |
-| 18 | 1089 | -1.4174e-5 | 0.0985 |
-| 20 | 1602 | **-9.9709e-7** | 0.0703 |
+| 12 | 202 | -1.6292e-2 | |
+| 14 | 396 | -4.4856e-3 | 0.275 |
+| 16 | 623 | -7.672e-4 | 0.171 |
+| 18 | 1089 | -7.5595e-5 | 0.0985 |
+| 20 | 1602 | **-5.3178e-6** | 0.0703 |
 
 The successive ratios shrink and their logarithms decrease linearly
 (-1.29, -1.77, -2.32), i.e. the sequence decays like `exp(-c d^2)` -
@@ -307,7 +314,7 @@ implemented in `sdpa_extract.py`).
 ### Canonical (minimum-trace) certificates
 
 `sdpa_selector.py` converts an exported problem into its certificate
-selector: among all certificates proving `T >= -eps`, find the one of
+selector: among all certificates proving `E >= -eps`, find the one of
 minimal trace.  This is a verbatim text transform (objective becomes
 -Identity; the old objective becomes one extra constraint with a 1x1
 slack block), so no precision is lost.  At `eps = 1e-3`:
@@ -350,14 +357,14 @@ so the earlier conclusion that the non-isotropic band is degree-stable
 was an artifact of MOSEK's double-precision noise floor and is
 retracted: the degree axis is alive, and the non-isotropic four-point
 value at degree 16 already beats the historical isotropic four-point
-value at degree 18 (-1.66e-4).
+value at degree 18 (-8.85e-4).
 
 The five-point configuration (arity 5, root-factor degree 2, matrix rank
 identities; m = 925) solved at degree 14 gives the primal/dual bracket
-[-8.46e-4, -8.40e-4] - indistinguishable from the four-point value.  In
+[-4.512e-3, -4.480e-3] - indistinguishable from the four-point value.  In
 high precision this is a genuine measurement: unlike the isotropic
 hierarchy, where this exact layer produced the four-order jump to
--4.8e-8, the non-isotropic arity-5 layer is inert at degree 14.  The
+-2.6e-7, the non-isotropic arity-5 layer is inert at degree 14.  The
 degree axis, not the arity axis, carries the non-isotropic hierarchy at
 these sizes.
 
@@ -379,10 +386,10 @@ face, consistent with the strictly negative dual value.
 The optimal pseudo-moment sets `h2 ~ 3.3e-3 > 0` and violates the
 isotropic contraction identities by `~1.5e-3`, e.g.
 `E[a^2 b^2] - p2/3 = 1.16e-3`.  The objective charges `h2` linearly
-(`+(45/8) h2` inside `T`), while a violation bought against the spin-2
+(`+30 h2` inside `E`), while a violation bought against the spin-2
 Gram block earns of order `sqrt(h2)` through the dual multipliers; for
 small `h2` the square root wins, producing a strictly negative floor
-`T* ~ -c^2` with `c ~ 0.1` — matching the observed `-8.5e-4` band.  Real
+`E* ~ -c^2` with `c ~ 0.1` — matching the observed `-4.5e-3` band.  Real
 measures cannot do this: their spin-2 correlation vectors all lie in the
 five-dimensional harmonic space, a rank condition that is not
 semidefinite-representable at accessible label sizes (its determinant
@@ -390,7 +397,7 @@ identities involve ~24-vertex product labels).
 
 Consequently the removal of isotropy is **not** currently subsumed by the
 implemented flag decomposition at degree 14: the isotropic-branch
-near-certificate `-4.8e-8` degrades to `-8.5e-4`.  Closing the gap
+near-certificate `-2.6e-7` degrades to `-4.5e-3`.  Closing the gap
 requires either certificate multipliers that annihilate every spin-2
 residual direction at the minimizing face, an SDP-representable surrogate
 for the spin-2 rank condition, or an independent isotropy-reduction
@@ -419,25 +426,25 @@ resulting problem re-solved with SDPA-GMP (200-bit, `epsilonStar 1e-25`).
 Both ablation directions are monotone (dropping a PSD family shrinks the
 certificate cone, dropping an equality family enlarges the pseudo-moment
 set), so "bound unchanged" is a proof of irrelevance at that degree.
-Baseline: `-8.4105048582e-4`.
+Baseline: `-4.4856025910e-3`.
 
 | dropped toggle | change in degree-14 bound |
 |---|---:|
-| `--hessian` | `-1e-17` |
-| `--global-gap` | `+7e-16` |
-| `--four-point-hessian` | `+2.7e-13` |
-| `--potential-matrices` | `+3.4e-13` |
-| `--harmonics` | `-1.9e-6` |
-| `--three-point-flags` | `-9.9e-6` |
-| `--global-tangent-gaps` | `-1.2e-5` |
-| `--four-point-flags` | `-4.3e-5` |
-| `--gradient` | `-6.0e-5` |
-| `--potential` | `-1.7e-4` |
-| `--two-root-flags` | `-1.2e-2` |
-| `--rank-relations` | `-1.2e-2` |
+| `--hessian` | `-5.3e-17` |
+| `--global-gap` | `+3.7e-15` |
+| `--four-point-hessian` | `+1.4e-12` |
+| `--potential-matrices` | `+1.8e-12` |
+| `--harmonics` | `-1.0e-5` |
+| `--three-point-flags` | `-5.3e-5` |
+| `--global-tangent-gaps` | `-6.4e-5` |
+| `--four-point-flags` | `-2.3e-4` |
+| `--gradient` | `-3.2e-4` |
+| `--potential` | `-9.1e-4` |
+| `--two-root-flags` | `-6.4e-2` |
+| `--rank-relations` | `-6.4e-2` |
 
 Dropping either `--two-root-flags` or `--rank-relations` collapses the
-bound to exactly `-1/77`: each of the two families independently excludes
+bound to exactly `-16/231`: each of the two families independently excludes
 the `p4 = 2/7, p6 = 20/77` pseudo-solution branch, and together they carry
 essentially the whole certificate.  The interior-point certificate agrees:
 its Gram weight concentrates on `two_root_even_00`, `two_root_even_11`,
@@ -472,9 +479,9 @@ solver precision:
 
 | degree | full hierarchy | pruned (9 toggles) |
 |---:|---:|---:|
-| 14 | -8.4105048582e-4 | -8.4105048557e-4 |
-| 16 | -1.4384819493e-4 | -1.4384819494e-4 |
-| 18 | -1.4174e-5 | -1.4174120e-5 |
+| 14 | -4.4856025910e-3 | -4.4856025897e-3 |
+| 16 | -7.6719037296e-4 | -7.6719037301e-4 |
+| 18 | -7.5595e-5 | -7.5595307e-5 |
 
 The four-sample Hessian multipliers, the global uniform gap, and the
 matrix-valued potential multipliers are therefore dead weight at every
@@ -496,15 +503,15 @@ two families was swept in degree:
 
 | degree | m | two-family bound | full hierarchy |
 |---:|---:|---:|---:|
-| 12 | 190 | -1.2079e-1 | -3.0548e-3 |
-| 14 | 367 | -3.0925e-3 | -8.4105e-4 |
-| 16 | 550 | -2.8644e-4 | -1.4385e-4 |
-| 18 | 947 | -5.3161e-5 | -1.4174e-5 |
+| 12 | 190 | -6.4421e-1 | -1.6292e-2 |
+| 14 | 367 | -1.6493e-2 | -4.4856e-3 |
+| 16 | 550 | -1.5277e-3 | -7.672e-4 |
+| 18 | 947 | -2.8353e-4 | -7.5595e-5 |
 
 (The degree-18 two-family value is a 128-bit `epsilonStar 1e-16` solve
 with primal/dual agreement `2.9e-9`; double-precision MOSEK cannot
 substitute at these sizes: on the exported degree-16 problem it stalls
-at `-1.34e-2` against the true `-2.864e-4` while reporting status
+at `-7.15e-2` against the true `-1.527e-3` while reporting status
 optimal.)
 
 The two-family cone starts far weaker and initially converges onto the
@@ -516,7 +523,166 @@ shrinking - and the excess over the full hierarchy bounces back to
 scenarios remain: the ratio stabilizes below 1 (bound still tends to 0,
 merely geometrically) or the ratio tends to 1 (strictly negative
 limit, and the two families alone do not certify copositivity even
-asymptotically).  Geometric continuation predicts about `-1.0e-5` at
-degree 20; continued ratio-doubling predicts about `-2.0e-5` with a
-possible negative limit near `-1.5e-5`.  The degree-20 solve is in
+asymptotically).  Geometric continuation predicts about `-5.3e-5` at
+degree 20; continued ratio-doubling predicts about `-1.1e-4` with a
+possible negative limit near `-8.0e-5`.  The degree-20 solve is in
 progress.
+
+## The (E1)-projected hierarchy
+
+`solve_e1.py` solves the complementary-slackness circle-mode equations
+(E1) in closed form (54 exact checks; see `docs/E1_ADMISSIBLE.md` and
+`docs/TWO_ROOT_GENERATORS.md`), and
+`--e1-project` restricts every flag-square family to the resulting
+admissible subspaces — complete facial reduction against the whole
+continuous zero-energy family, exact and symbolic.  Under `--check-onb`
+every projected flag block vanishes at the ONB to machine precision.
+
+Degree-14 MOSEK dual with `--scale-constraints`, current tree
+(baseline `-4.49e-3`):
+
+| projected families | bound |
+|---|---:|
+| one-root only | -5.371e-3 |
+| one-root + pair flags | -4.970e-3 |
+| two-root only | -2.576e-2 |
+| one-root + two-root | -8.69e-1 |
+| all families | unbounded (also at degree 16) |
+
+The one-root layer collapses from its full degree-14 basis to the seven
+closed-form leaves at a cost of `~1.1e-3`: the hierarchy never used the
+dead one-root directions.  Removing the dead directions of both the
+one-root and two-root layers destroys boundedness entirely: the
+`epsilon > 0` certificates route their mass through (E1)-dead
+directions jointly, which is the escape-to-infinity of the sharp
+certificate seen from the moment side.  The recession ray of the fully
+projected dual is a cheap proxy for the residue direction `Y_0`.
+
+## The all-measures weighted cone (proof-carrying variant)
+
+The reduction lemma (h_2E >= 0 for all measures => E >= 0) composes only
+with certificates valid for **all** measures, not with the KKT-restricted
+hierarchy: a sharp KKT-cone certificate of h_2E proves only that any
+counterexample minimizer is isotropic, which is vacuous because the
+zero family is isotropic.  Proof-carrying weighted runs therefore drop
+`--gradient --potential --hessian --global-gap --global-tangent-gaps`
+(every remaining family is an identity or a valid square).
+
+MOSEK double precision, degree 14, flags + harmonics + rank relations:
+
+| target / module | labels | dual bound |
+|---|---:|---:|
+| E (unweighted, all-measures cone) | 662 | -6.085e-3 |
+| h_2E | 662 | -1.070e-2 |
+| h_2E + `--h2-localized-all` | 1312 | **-3.816e-4** |
+
+Dropping the KKT families costs little (unweighted: -4.5e-3 -> -5.9e-3),
+and the localized weighted bound at -3.8e-4 is stronger than the Stage-1
+KKT-inclusive numbers.  Consistently with `solve_e1.py` Part D, the
+localized structure is *forced*: every pure square of a sharp
+all-measures h_2E certificate must have degree-2-harmonic leaves (the
+deviatoric flag; spin 0 span{t^2-1/3}, spin 1 span{t}, spin 2 span{1},
+pair layer span{3p2-1}), and every other block must carry the h2 factor.
+
+Epsilon-trace law (primal minimal trace, degree 12, same cone,
+h2-localized module): trace = 1.57, 1.37, 1.34, 1.42, 2.00 at
+eps = 0.3, 0.1, 0.03, 0.01, 0.003 — flat over two decades until the
+degree-12 feasibility cutoff, versus the 100x growth a 1/eps pole would
+show.  The degree-14 primal is beyond MOSEK double precision; the
+decisive small-eps points run through `sdpa_runs/` (SDPA-GMP 128-bit):
+the KKT-cone point tr C_w(1e-4) = 330.1 (32x below the unweighted pole
+law), the eps = 1e-5 verdict and the all-measures analogue in progress.
+
+## Recession ray of the (E1)-projected dual (Y0 proxy)
+
+`--find-ray` (new) computes the least-norm improving ray of the projected
+moment problem at degree 14: pseudo-moment direction with zero constant
+coordinate, PSD pairings preserved, equalities annihilated, target
+pairing -1 (feasible because the projected dual is unbounded).  Solved
+by CLARABEL (`optimal_inaccurate`, squared norm 60); data in
+`sdpa_runs/ray_projected_deg14.json`.
+
+Structure of the escape direction:
+
+- squared-norm mass: triangle 40.5%, graph_4 28.6%, pair 27.7%,
+  product 3.2%, graph_5/6 ~0%;
+- pair content: p2 = 0.003 (the ray is h2-orthogonal: the projection has
+  already removed the h2-graded leak), while p4..p14 = 1.2..1.8 with a
+  flat tail — a collision-type distance spectrum (p_j -> const is the
+  signature of mass at t = +-1);
+- the load sits exactly where the two-root flag squares live, at high
+  modulation content, consistent with the escape being the truncated
+  theta tower of docs/TWO_ROOT_GENERATORS.md §7.
+
+Caveat: single double-precision solve, `optimal_inaccurate`; treat as a
+qualitative fingerprint, not exact data.
+
+## The escape is the spin-4 mode, and the constraint that kills it
+
+Pairing the projected-dual escape ray with the standard nonnegative
+functionals: g_2 . ray = 0.005, g_4 . ray = 5.353, g_6..g_14 . ray = 0
+(to 4+ decimals), E[det Gram_3] . ray = -0.003.  The ray is a pure g_4
+recession: E pays -384/385 per unit of g_4 (its l = 4 Legendre
+coefficient), and (-384/385) * 5.353 = -5.34 = (16/3) * (-1.0005): the
+stored ray is normalized to target pairing -1 in the legacy scale.  The
+single negative Legendre coefficient of K (l = 4) is the entire escape
+of the fully reduced hierarchy.  This also explains the epsilon-trace
+verdict: the escape is h2-orthogonal, so no power of h2 repairs it.
+
+The sharpness-compatible constraint that bounds this direction is the
+SO(3) operator inequality of STRUCTURE.md §4: A_2 = int pi_2(rho_x) dmu
+is an average of orthogonal involutions, so -I <= A_2 <= I for every
+measure.  Verified in exact arithmetic (solve_e1.py Part E, 57 checks):
+
+- diag(1,1,-2) is an eigenvalue-1 eigenvector of A_2(mu*) identically
+  across the whole pole-equator zero family (all free nu-modes), so
+  I - A_2 >= 0 is ACTIVE at sharpness with a common active eigenvector;
+- A_2(ONB) has spectrum {1, 1, -1/3, -1/3, -1/3} (minimal polynomial
+  (x-1)(x+1/3), trace 1).
+
+Unlike the rejected |M| <= 1 box cuts (inactive at the ONB, multipliers
+forced to vanish), operator-gap multipliers can appear in a sharp
+certificate.  Implementation: localizing blocks
+G_ab = E[v_a^T (I - A_2) v_b] over equivariant spin-2 test features;
+entries are polynomials in Gram entries, i.e. existing multigraph
+labels.
+
+First measurements of `--spin2-operator-gap` (localized blocks over
+spin-2 flag features, multiplier 4ab(c - ab) on the (x, x', z) core):
+blocks build (size 7 at degree 14) and pass the ONB audit with the
+I - A_2 block PSD-with-kernel (min eigenvalue 0: the activity in solver
+coordinates).  With the (E1) projection the escape ray persists
+(squared norm 60 -> 156, still g_4-dominated with g_2 = 0.53 admixed):
+the finitely many feature localizations do not yet pin the full
+operator bound - the ray retreats into the feature-orthogonal
+complement.  Double-precision MOSEK cannot resolve the bound effect
+(baseline vs +gap within solver noise).  Next escalations: deeper
+feature bases (more leaves / conditioned features), GMP re-measures of
+the gap-augmented bounds, and A_2-word blocks (nc-moment matrices of
+pi_2(rho_x) words) which enforce the operator bound exactly in the
+word-length limit.
+
+All-measures cone selector points (SDPA-GMP 128-bit, degree 14,
+h2-localized module, no KKT families): tr C_w^allm(1e-4) = 704.13
+(pdFEAS, gap 3.7e-9, 25 min) - feasibility certifies the true
+all-measures weighted bound at degree 14 is better than -5.3e-4, and the
+proof-carrying cone pays only ~2.1x the trace of the KKT-inclusive cone
+(330.1) at the same epsilon.  The 1e-5 point is running.
+
+Final epsilon-trace verdict (SDPA-GMP 128-bit, degree 14, h2-localized):
+
+| cone | tr(1e-4) | tr(1e-5) | growth/decade |
+|---|---:|---:|---:|
+| KKT-inclusive        | 330.1 | 5529.3 | 16.7x |
+| all-measures (proof) | 704.1 | 9043.6 | 12.8x |
+
+Both cones show a genuine pole (local exponent eps^{-1.1..-1.2}) rather
+than attainment (~1x): the h2-weighted hierarchy does NOT attain at
+degree 14 in either cone.  Feasibility at eps = 1e-5 additionally
+certifies that the true degree-14 weighted bound lies in [-5.3e-5, 0) in
+BOTH cones - the proof-carrying all-measures cone matches the
+KKT-inclusive cone to GMP precision (the MOSEK double estimate -3.8e-4
+was understated), and the two cones' trace laws converge (ratio 2.1x ->
+1.6x).  Together with the pure-g4 escape fingerprint, the program's
+active branches are the spin-2 operator-gap escalation and the theta
+atoms; degree-16 confirmation of the pole remains queued.

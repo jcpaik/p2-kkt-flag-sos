@@ -5,9 +5,9 @@
 `sos_search.py` constructs either side of a finite semidefinite relaxation:
 
 - the **primal** searches for SOS Gram matrices and KKT multipliers whose
-  expansion equals the target \(T\);
+  expansion equals the target \(E\);
 - the **dual** searches for a formal moment functional satisfying every
-  encoded positivity/equality constraint while minimizing \(T\).
+  encoded positivity/equality constraint while minimizing \(E\).
 
 The dual is numerically much more stable in the current singular problem.
 

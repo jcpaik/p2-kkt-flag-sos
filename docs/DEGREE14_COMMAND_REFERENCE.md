@@ -5,7 +5,7 @@
 > contracted through \(\mathbb E[XX^{\mathsf T}]=\tfrac13I\). The current
 > `sos_search.py` no longer performs that contraction: `("pair", 2)` and
 > all degree-two-vertex graphs are independent labels, the target is
-> \(T=-\tfrac14+\tfrac{15}{4}p_2-9p_4+6p_6\), and the isotropy deficit is
+> \(E=-\tfrac43+20p_2-48p_4+32p_6\), and the isotropy deficit is
 > carried by the `harmonic_2`, `harmonic_flag_*`, and `spin2_flag` blocks.
 > Label counts, block lists, and the reported bound differ accordingly; see
 > [RESULTS.md](../RESULTS.md) for the non-isotropic record. The derivations
@@ -30,7 +30,7 @@ python3 sos_search.py \
 The command constructs a finite semidefinite relaxation for the isotropic KKT
 branch of the \(P_2\)-kernel problem. It solves the **dual moment problem**:
 among formal moment functionals satisfying the selected flag, harmonic, KKT,
-and Gram-rank constraints, minimize the normalized energy.
+and Gram-rank constraints, minimize the energy.
 
 Three qualifications are essential.
 
@@ -57,7 +57,7 @@ named theorem. In this project it means:
 - positive semidefinite multipliers for inequalities and unrestricted
   multipliers for equalities.
 
-## 2. The kernel, energy, and normalized target
+## 2. The kernel, energy, and target
 
 Let \(\mu\) be an antipodally symmetric probability measure on \(S^2\), or
 equivalently a probability measure on
@@ -70,7 +70,7 @@ K(t)=32t^6-48t^4+20t^2-\frac43.
 Its energy is
 
 \[
-E_K(\mu)
+E(\mu)
   =\iint K(x\cdot y)\,d\mu(x)d\mu(y).
 \]
 
@@ -84,7 +84,7 @@ p_r=\mathbb E[(X\cdot Y)^r],
 Then
 
 \[
-E_K=32p_6-48p_4+20p_2-\frac43.
+E=32p_6-48p_4+20p_2-\frac43.
 \]
 
 The implementation assumes isotropy:
@@ -106,23 +106,22 @@ p_2
 The energy therefore becomes
 
 \[
-E_K
-=32p_6-48p_4+\frac{16}{3}
-=\frac{16}{3}\left(1-9p_4+6p_6\right).
+E
+=32p_6-48p_4+\frac{16}{3}.
 \]
 
 The SDP target is
 
 \[
-\boxed{T=1-9p_4+6p_6=\frac{3}{16}E_K.}
+\boxed{E=\frac{16}{3}-48p_4+32p_6.}
 \]
 
 In the code this is the coefficient vector
 
 ```text
-constant :  1
-pair_4   : -9
-pair_6   :  6
+constant :  16/3
+pair_4   : -48
+pair_6   :  32
 ```
 
 The dual objective is the formal evaluation of this vector.
@@ -321,8 +320,8 @@ The command uses `--dual`, so it solves the conic dual:
 \[
 \begin{aligned}
 \text{minimize}\quad&
-  y_{\mathrm{constant}}-9y_{\mathrm{pair},4}
-  +6y_{\mathrm{pair},6},\\
+  \frac{16}{3}y_{\mathrm{constant}}-48y_{\mathrm{pair},4}
+  +32y_{\mathrm{pair},6},\\
 \text{subject to}\quad&
   y_{\mathrm{constant}}=1,\\
 &\sum_Ly_LA_L^{(\beta)}\succeq0
@@ -748,24 +747,24 @@ U_\mu(x)=\int K(x\cdot y)\,d\mu(y).
 Then
 
 \[
-E_K(\mu)=\int U_\mu(x)\,d\mu(x).
+E(\mu)=\int U_\mu(x)\,d\mu(x).
 \]
 
 If \(\mu\) is a global minimizer, adding infinitesimal mass at \(z\) gives
 
 \[
 \left.\frac{d}{d\varepsilon}\right|_{\varepsilon=0}
-E_K\bigl((1-\varepsilon)\mu+\varepsilon\delta_z\bigr)
-=2(U_\mu(z)-E_K(\mu)).
+E\bigl((1-\varepsilon)\mu+\varepsilon\delta_z\bigr)
+=2(U_\mu(z)-E(\mu)).
 \]
 
 Therefore the global first-variation KKT conditions are
 
 \[
 \begin{aligned}
-U_\mu(z)-E_K(\mu)&\ge0
+U_\mu(z)-E(\mu)&\ge0
 &&\text{for every }z\in S^2,\\
-U_\mu(x)-E_K(\mu)&=0
+U_\mu(x)-E(\mu)&=0
 &&\text{for }\mu\text{-almost every }x.
 \end{aligned}
 \]
@@ -802,7 +801,7 @@ K''(t)&=960t^4-576t^2+40.
 For independent \(X,Y,Z,W\sim\mu\), support stationarity gives
 
 \[
-U_\mu(X)=E_K(\mu)
+U_\mu(X)=E(\mu)
 \qquad\mu\text{-almost surely}.
 \]
 
@@ -847,7 +846,7 @@ The \(r=6\) and \(r=8\) formulas are generated in the same way.
 ## 14. `--potential-matrices`: matrix support-potential identities
 
 The scalar potential equalities are strengthened by multiplying
-\(U_\mu(X)-E_K(\mu)\) by one-root flag Gram matrices.
+\(U_\mu(X)-E(\mu)\) by one-root flag Gram matrices.
 
 Using the variables of Section 7, a typical entry is
 
@@ -860,7 +859,7 @@ Using the variables of Section 7, a typical entry is
   R_k(X;Z,W)
 \right]\\
 &-
-E_K(\mu)\,
+E(\mu)\,
 \mathbb E\!\left[
   (X\cdot Z)^r(X\cdot W)^s
   R_k(X;Z,W)
@@ -871,7 +870,7 @@ E_K(\mu)\,
 In the isotropic branch,
 
 \[
-E_K=\frac{16}{3}-48p_4+32p_6,
+E=\frac{16}{3}-48p_4+32p_6,
 \]
 
 which is the expression used when expanding the second term.
@@ -1125,7 +1124,7 @@ flag blocks are included.
 The KKT inequality
 
 \[
-q_\mu(z)=U_\mu(z)-E_K(\mu)\ge0
+q_\mu(z)=U_\mu(z)-E(\mu)\ge0
 \]
 
 holds for every trial point \(z\) at a global minimizer.
@@ -1140,13 +1139,13 @@ Average \(z\) uniformly over \(S^2\). The degree-zero Legendre coefficient of
 Therefore
 
 \[
-\frac{32}{105}-E_K(\mu)\ge0.
+\frac{32}{105}-E(\mu)\ge0.
 \]
 
 Using isotropy,
 
 \[
-\frac{32}{105}-E_K
+\frac{32}{105}-E
 =-\frac{176}{35}+48p_4-32p_6.
 \]
 
@@ -1178,7 +1177,7 @@ Then
 z_\parallel\cdot Y=\frac{b-ac}{\sqrt d}.
 \]
 
-Because \(U_\mu(X)=E_K\) on the support, the cleared-denominator gap is
+Because \(U_\mu(X)=E\) on the support, the cleared-denominator gap is
 
 \[
 \boxed{
@@ -1389,19 +1388,19 @@ exact-arithmetic guarantee.
 For the published run, MOSEK reports a value close to
 
 \[
--4.8\times10^{-8}.
+-2.6\times10^{-7}.
 \]
 
 The correct interpretation is:
 
-- the selected finite formal-moment relaxation nearly proves \(T\ge0\);
+- the selected finite formal-moment relaxation nearly proves \(E\ge0\);
 - its small negative optimum may be numerical error, a relaxation gap, or a
   non-attainment/closure phenomenon;
 - it is not an actual measure of negative energy;
 - it is not an exact SOS proof.
 
 If the dual optimum were rigorously nonnegative, then every actual isotropic
-measure satisfying the encoded KKT conditions would have \(T\ge0\). If a
+measure satisfying the encoded KKT conditions would have \(E\ge0\). If a
 rational primal identity with exact PSD matrices were recovered, the identity
 would give a machine-checkable certificate for that same isotropic KKT
 branch.

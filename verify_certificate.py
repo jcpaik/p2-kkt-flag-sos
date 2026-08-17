@@ -47,7 +47,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("problem", help="PROBLEM.dat-s (the original, not the selector)")
     parser.add_argument("certificate", help="frob*.json with block matrices")
-    parser.add_argument("--shift", type=float, default=-0.25)
+    # Objective shift of the exported problem (printed in the export
+    # JSON): -4/3 for target E, 2/3 for target h2*E.  Legacy exports made
+    # before the E-normalization used (3/16)E and shift -1/4 or 1/8.
+    parser.add_argument("--shift", type=float, default=-4.0 / 3.0)
     args = parser.parse_args()
 
     m, sizes, c, entries = parse_dats(args.problem)

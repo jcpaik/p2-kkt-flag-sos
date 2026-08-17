@@ -11,14 +11,14 @@ For a probability measure \(\mu\) on the real projective plane
 \(\mathbb{RP}^2=S^2/\{x\sim -x\}\), define its \(K\)-energy by
 
 \[
-E_K(\mu)=
+E(\mu)=
 \iint K(x\cdot y)\,d\mu(x)\,d\mu(y).
 \]
 
 The desired copositivity statement is
 
 \[
-E_K(\mu)\ge 0
+E(\mu)\ge 0
 \qquad
 \text{for every probability measure }\mu\text{ on }\mathbb{RP}^2.
 \]
@@ -47,10 +47,10 @@ No exact certificate is claimed, and copositivity is **not** proved.
 The implementation no longer assumes isotropy. The moment reducer keeps
 every antipodally even expectation as an independent label — in particular
 \(p_2=\iint(x\cdot y)^2\,d\mu\,d\mu\) is a genuine variable — and the target
-is the general normalization
+is the energy itself,
 
 \[
-T(\mu)=-\frac14+\frac{15}{4}p_2-9p_4+6p_6=\frac{3}{16}E_K(\mu),
+E(\mu)=-\frac43+20p_2-48p_4+32p_6,
 \qquad
 p_j=\iint(x\cdot y)^j\,d\mu(x)d\mu(y).
 \]
@@ -67,13 +67,13 @@ With this general hierarchy, the strongest stable configuration (degree
 blocks) yields
 
 \[
-T\ \ge\ -8.95\times10^{-4},
+E\ \ge\ -4.77\times10^{-3},
 \]
 
 and every degree-14 variant lands in the band
-\(-(8.4\text{–}9.4)\times10^{-4}\). Degree-16/18 runs exceed MOSEK's
+\(-(4.5\text{–}5.0)\times10^{-3}\). Degree-16/18 runs exceed MOSEK's
 numerical range for this formulation. The isotropic-branch near-certificate
-\(T\gtrsim-4.8\times10^{-8}\) therefore does **not** survive the removal of
+\(E\gtrsim-2.6\times10^{-7}\) therefore does **not** survive the removal of
 the isotropy assumption at the same degree and arity.
 
 The moment diagnostics identify the mechanism: the optimal pseudo-moment
@@ -136,10 +136,10 @@ python sos_search.py \
   --tolerance 1e-9
 ```
 
-Expected objective:
+Expected objective (≈16/3 × the legacy value; last digits solver-dependent):
 
 ```text
--8.95273270049346e-04
+-4.77479077359651e-03
 ```
 
 Small changes in solver version, scaling, or tolerances can change the last
