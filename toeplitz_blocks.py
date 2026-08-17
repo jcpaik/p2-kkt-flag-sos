@@ -70,6 +70,7 @@ from theta_atoms import (
     Poly3,
     hat_generator,
     label_moment,
+    poly3_add,
     poly3_degree,
     poly3_eval,
     poly3_mul,
@@ -209,13 +210,25 @@ def h2_shift_matrices(
 # Families
 # ---------------------------------------------------------------------------
 
+S2_POLY3: Poly3 = {(0, 0, 2): Fraction(1)}
+S2_PAIRING: GraphPolynomial = [(Fraction(1), (2, 0, 0, 0, 0, 0))]
+
+
 def build_two_root_family(
     sector: str,
     degree_cap: int,
     minor: bool = False,
     h2loc: bool = False,
+    s2: bool = False,
 ) -> dict:
-    """Exact T, G, and A = T - G label matrices for one sector family."""
+    """Exact T, G, and A = T - G label matrices for one sector family.
+
+    ``s2`` multiplies the root weight by s^2 >= 0 (pointwise), the
+    complementary localization to the ``minor`` weight 1 - s^2: it
+    concentrates the conditional-Jensen coupling at nearly-collinear
+    root pairs -- the collision boundary s = +-1 where the measured
+    escape's sign-alternating T_n(+-1) signature lives.
+    """
     basis = sector_basis(sector, degree_cap)
     odd = sector.startswith("odd")
     weight = GRAM_DET if odd else ONE_POLY3
@@ -223,6 +236,9 @@ def build_two_root_family(
     if minor:
         weight = poly3_mul(weight, ONE_MINUS_S2)
         pairing = multiply_graph_polynomials(pairing, ROOT_PAIR_MINOR)
+    if s2:
+        weight = poly3_mul(weight, S2_POLY3)
+        pairing = multiply_graph_polynomials(pairing, S2_PAIRING)
     size = len(basis)
 
     T: dict[Label, list[list[Fraction]]] = {}
@@ -264,6 +280,7 @@ def build_two_root_family(
         "degree_cap": degree_cap,
         "minor": minor,
         "h2loc": h2loc,
+        "s2": s2,
         "basis": basis,
         "size": size,
         "T": T,
@@ -407,6 +424,224 @@ def build_pair_complement_family(
     }
 
 
+# ---------------------------------------------------------------------------
+# v3: fiber-Toeplitz blocks and pair-sector moment families
+# ---------------------------------------------------------------------------
+# w = (t2 - s t1) + i det(x1,x2,y) = sin(delta) sin(theta) e^{i phi}:
+# |w|^2 = (1-t1^2)(1-s^2) and w^{2m} = A_m + i det B_m with A_m, B_m
+# polynomial in (t1,t2,s) (det^2 = GRAM_DET).
+
+ABS_W2: Poly3 = {
+    (0, 0, 0): Fraction(1),
+    (2, 0, 0): Fraction(-1),
+    (0, 0, 2): Fraction(-1),
+    (2, 0, 2): Fraction(1),
+}
+RE_W2: Poly3 = poly3_add(
+    poly3_mul(
+        {(0, 1, 0): Fraction(1), (1, 0, 1): Fraction(-1)},
+        {(0, 1, 0): Fraction(1), (1, 0, 1): Fraction(-1)},
+    ),
+    GRAM_DET,
+    Fraction(-1),
+)
+IM_W2_OVER_DET: Poly3 = {(0, 1, 0): Fraction(2), (1, 0, 1): Fraction(-2)}
+
+
+def w_even_power_re(maximum: int) -> list[Poly3]:
+    """[A_0 .. A_K] with w^{2m} = A_m + i det B_m (A_m = Re w^{2m})."""
+    a_list, b_list = [dict(ONE_POLY3)], [dict()]
+    for m in range(maximum):
+        a_next = poly3_add(
+            poly3_mul(a_list[m], RE_W2),
+            poly3_mul(poly3_mul(b_list[m], IM_W2_OVER_DET), GRAM_DET),
+            Fraction(-1),
+        )
+        b_next = poly3_add(
+            poly3_mul(a_list[m], IM_W2_OVER_DET),
+            poly3_mul(b_list[m], RE_W2),
+        )
+        a_list.append(a_next)
+        b_list.append(b_next)
+    return a_list
+
+
+def build_fiber_toeplitz_family(
+    order: int,
+    radial_cap: int,
+    sector: str = "even_00",
+    h2loc: bool = False,
+) -> dict:
+    """Fiber-Toeplitz block: Re of the Hermitian Toeplitz(x)radial Gram.
+
+    With V_{(j,a)} = |w|^K e^{2 i j phi} g_a(t1,t2,s), j = 0..K, the
+    matrix E[V V^H] is Hermitian PSD for every measure (single-leaf
+    average of a rank-one PSD, conditional on the roots, then averaged);
+    its real part is PSD and has POLYNOMIAL entries
+
+        M_{(j,a),(k,b)} = E[ (|w|^2)^{K-|j-k|} Re(w^{2(j-k)}) g_a g_b ],
+
+    i.e. the radially-weighted trigonometric moment matrix of the
+    leaf's azimuthal distribution about the pair frame -- Toeplitz
+    positivity of the fiber measure, NOT a polynomial square: the
+    Fejer-Riesz factors |w|^K e^{2ij phi} are non-polynomial for
+    j > K/2, so no within-degree polynomial Gram reproduces the
+    constant-diagonal structure (see docs/TOEPLITZ_BLOCKS_NOTE.md).
+    Entries are triangle labels; h2loc copies give p2 x triangle.
+    ``sector`` selects the per-vertex parity class of the radial
+    factors g_a (pairs from one class keep entries leaf-even).
+    """
+    g_basis = sector_basis(sector, radial_cap)
+    a_polys = w_even_power_re(order)
+    absw2_pow = [dict(ONE_POLY3)]
+    for _ in range(order):
+        absw2_pow.append(poly3_mul(absw2_pow[-1], ABS_W2))
+    indices = [
+        (j, g_index)
+        for j in range(order + 1)
+        for g_index in range(len(g_basis))
+    ]
+    size = len(indices)
+    A: dict[Label, list[list[Fraction]]] = {}
+    for row, (j, ga) in enumerate(indices):
+        for column, (k, gb) in enumerate(indices):
+            m = abs(j - k)
+            core = poly3_mul(absw2_pow[order - m], a_polys[m])
+            core = poly3_mul(
+                core,
+                poly3_mul(
+                    {g_basis[ga]: Fraction(1)},
+                    {g_basis[gb]: Fraction(1)},
+                ),
+            )
+            for key, coefficient in core.items():
+                label, reduction = expectation_label(key)
+                if label is None or reduction == 0:
+                    continue
+                matrix = A.setdefault(
+                    label,
+                    [[Fraction(0)] * size for _ in range(size)],
+                )
+                matrix[row][column] += coefficient * reduction
+    if h2loc:
+        A = h2_shift_matrices(A)
+    return {
+        "kind": "fiber_toeplitz",
+        "sector": sector,
+        "degree_cap": radial_cap,
+        "order": order,
+        "minor": False,
+        "h2loc": h2loc,
+        "basis": indices,
+        "g_basis": g_basis,
+        "size": size,
+        "T": A,
+        "G": {},
+        "A": A,
+    }
+
+
+def pair_power_label(power: int) -> Label:
+    return ("constant",) if power == 0 else ("pair", power)
+
+
+def build_pair_hankel_localized(
+    max_pair_degree: int = 6, h2loc: bool = False
+) -> dict:
+    """Localized Hankel of the pair variable: [p_{a+b} - p_{a+b+2}] >= 0.
+
+    The moment matrix of the positive measure (1 - t^2) d nu with nu
+    the law of t = X.Y -- valid for every measure, not implied by the
+    g_l >= 0 rows or the Gram families (localization at t in [-1,1]).
+    """
+    degrees = list(range(0, max_pair_degree + 1, 2))
+    size = len(degrees)
+    A: dict[Label, list[list[Fraction]]] = {}
+    for row, a in enumerate(degrees):
+        for column, b in enumerate(degrees):
+            for power, coefficient in (
+                (a + b, Fraction(1)),
+                (a + b + 2, Fraction(-1)),
+            ):
+                label = pair_power_label(power)
+                matrix = A.setdefault(
+                    label,
+                    [[Fraction(0)] * size for _ in range(size)],
+                )
+                matrix[row][column] += coefficient
+    if h2loc:
+        A = h2_shift_matrices(A)
+    return {
+        "kind": "pair_hankel_loc",
+        "sector": "empty_type",
+        "degree_cap": max_pair_degree,
+        "minor": True,
+        "h2loc": h2loc,
+        "basis": degrees,
+        "size": size,
+        "T": A,
+        "G": {},
+        "A": A,
+    }
+
+
+def build_pair_weighted_jensen(
+    max_pair_degree: int = 4, h2loc: bool = False
+) -> dict:
+    """Covariance of the vector ((1 - t^2) t^a)_a over one pair sample.
+
+    T_ab = p_{a+b} - 2 p_{a+b+2} + p_{a+b+4} (pair labels),
+    G_ab = (p_a - p_{a+2})(p_b - p_{b+2})   (pair-product labels);
+    T - G >= 0.  The h2-localized copy lands on p2 x pair and
+    p2 x pair x pair -- the pair-product home of the v2 residual.
+    """
+    degrees = list(range(0, max_pair_degree + 1, 2))
+    size = len(degrees)
+    T: dict[Label, list[list[Fraction]]] = {}
+    G: dict[Label, list[list[Fraction]]] = {}
+    for row, a in enumerate(degrees):
+        for column, b in enumerate(degrees):
+            for power, coefficient in (
+                (a + b, Fraction(1)),
+                (a + b + 2, Fraction(-2)),
+                (a + b + 4, Fraction(1)),
+            ):
+                matrix = T.setdefault(
+                    pair_power_label(power),
+                    [[Fraction(0)] * size for _ in range(size)],
+                )
+                matrix[row][column] += coefficient
+            for pa, ca in ((a, Fraction(1)), (a + 2, Fraction(-1))):
+                for pb, cb in (
+                    (b, Fraction(1)),
+                    (b + 2, Fraction(-1)),
+                ):
+                    label = multiply_labels(
+                        pair_power_label(pa), pair_power_label(pb)
+                    )
+                    matrix = G.setdefault(
+                        label,
+                        [[Fraction(0)] * size for _ in range(size)],
+                    )
+                    matrix[row][column] += ca * cb
+    if h2loc:
+        T = h2_shift_matrices(T)
+        G = h2_shift_matrices(G)
+    A = subtract_matrices(T, G, size)
+    return {
+        "kind": "pair_jensen_minor",
+        "sector": "empty_type",
+        "degree_cap": max_pair_degree,
+        "minor": True,
+        "h2loc": h2loc,
+        "basis": degrees,
+        "size": size,
+        "T": T,
+        "G": G,
+        "A": A,
+    }
+
+
 def family_name(family: dict) -> str:
     name = family["sector"]
     if family["kind"] == "two_root_jensen":
@@ -420,10 +655,24 @@ def family_name(family: dict) -> str:
         name = (
             f"h2comp_{'cov' if family['which'] == 'A' else 'gram'}_pair"
         )
+    elif family["kind"] == "fiber_toeplitz":
+        name = f"ftoep{family['order']}_{name}"
+        prefix = "h2loc_" if family["h2loc"] else ""
+        return prefix + name + f"_r{family['degree_cap']}"
+    elif family["kind"] == "pair_hankel_loc":
+        name = "pair_hankel_loc"
+        prefix = "h2loc_" if family["h2loc"] else ""
+        return prefix + name + f"_d{family['degree_cap']}"
+    elif family["kind"] == "pair_jensen_minor":
+        name = "pair_jensen_minor"
+        prefix = "h2loc_" if family["h2loc"] else ""
+        return prefix + name + f"_d{family['degree_cap']}"
     else:
         name = "jensen_pair"
     if family["minor"]:
         name += "_minor"
+    if family.get("s2"):
+        name += "_s2"
     if family["h2loc"]:
         name = "h2loc_" + name
     return name + f"_d{family['degree_cap']}"
@@ -473,6 +722,80 @@ def direct_family_matrix(family: dict, points, weights) -> np.ndarray:
     """The family matrix evaluated directly on a discrete measure."""
     count = len(points)
     gram = points @ points.T
+
+    def h2_value() -> float:
+        p2 = sum(
+            weights[x] * weights[y] * gram[x, y] ** 2
+            for x in range(count)
+            for y in range(count)
+        )
+        return (3.0 * p2 - 1.0) / 2.0
+
+    if family["kind"] == "fiber_toeplitz":
+        order = family["order"]
+        g_basis = family["g_basis"]
+        indices = family["basis"]
+        size = len(indices)
+        matrix = np.zeros((size, size))
+        for x1 in range(count):
+            for x2 in range(count):
+                s = gram[x1, x2]
+                vectors = np.zeros((size, count), dtype=complex)
+                for y in range(count):
+                    t1, t2 = gram[x1, y], gram[x2, y]
+                    det = np.linalg.det(
+                        np.stack([points[x1], points[x2], points[y]])
+                    )
+                    w = (t2 - s * t1) + 1j * det
+                    magnitude = abs(w)
+                    if magnitude < 1e-14:
+                        continue
+                    phase2 = (w / magnitude) ** 2
+                    for row, (j, ga) in enumerate(indices):
+                        i_exp, j_exp, k_exp = g_basis[ga]
+                        vectors[row, y] = (
+                            magnitude**order
+                            * phase2**j
+                            * t1**i_exp
+                            * t2**j_exp
+                            * s**k_exp
+                        )
+                inner = vectors @ np.diag(weights) @ vectors.conj().T
+                matrix += weights[x1] * weights[x2] * inner.real
+        if family["h2loc"]:
+            matrix = h2_value() * matrix
+        return matrix
+
+    if family["kind"] in ("pair_hankel_loc", "pair_jensen_minor"):
+        degrees = family["basis"]
+        omega_moment = {}
+        for power in range(0, 2 * max(degrees) + 5):
+            omega_moment[power] = sum(
+                weights[x] * weights[y] * gram[x, y] ** power
+                for x in range(count)
+                for y in range(count)
+            )
+        size = len(degrees)
+        matrix = np.zeros((size, size))
+        for row, a in enumerate(degrees):
+            for column, b in enumerate(degrees):
+                if family["kind"] == "pair_hankel_loc":
+                    matrix[row, column] = (
+                        omega_moment[a + b] - omega_moment[a + b + 2]
+                    )
+                else:
+                    second = (
+                        omega_moment[a + b]
+                        - 2 * omega_moment[a + b + 2]
+                        + omega_moment[a + b + 4]
+                    )
+                    mean_a = omega_moment[a] - omega_moment[a + 2]
+                    mean_b = omega_moment[b] - omega_moment[b + 2]
+                    matrix[row, column] = second - mean_a * mean_b
+        if family["h2loc"]:
+            matrix = h2_value() * matrix
+        return matrix
+
     pair_like = family["kind"] in ("pair_jensen", "h2_complement_pair")
     if pair_like:
         degrees = family["basis"]
@@ -532,6 +855,8 @@ def direct_family_matrix(family: dict, points, weights) -> np.ndarray:
                 rho = weights[x1] * weights[x2]
                 if family["minor"]:
                     rho *= 1.0 - s * s
+                if family.get("s2"):
+                    rho *= s * s
                 cov_matrix += rho * (second - np.outer(mean, mean))
                 gram_matrix += rho * np.outer(mean, mean)
     p2 = sum(
@@ -587,10 +912,19 @@ def self_test() -> None:
         build_two_root_family("even_00", 3, minor=True),
         build_two_root_family("even_00", 3, h2loc=True),
         build_two_root_family("odd_10", 3, minor=True, h2loc=True),
+        build_two_root_family("even_00", 3, s2=True),
+        build_two_root_family("even_11", 3, s2=True, h2loc=True),
         build_h2_complement_family("even_00", 3, which="G"),
         build_h2_complement_family("even_11", 3, which="A"),
         build_h2_complement_family("odd_01", 3, which="G"),
         build_pair_complement_family(6, "G"),
+        build_fiber_toeplitz_family(2, 2, "even_00"),
+        build_fiber_toeplitz_family(2, 1, "even_11", h2loc=True),
+        build_fiber_toeplitz_family(3, 0, "even_00"),
+        build_pair_hankel_localized(6),
+        build_pair_hankel_localized(6, h2loc=True),
+        build_pair_weighted_jensen(4),
+        build_pair_weighted_jensen(4, h2loc=True),
     ]
     worst_gap = 0.0
     worst_eig = 0.0

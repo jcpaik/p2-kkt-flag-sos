@@ -33,11 +33,12 @@ def main() -> None:
     parser.add_argument(
         "--out", default="sdpa_runs/blocks_deg14_h2w_h2all_toep.json"
     )
+    parser.add_argument("--capture", default=str(CAPTURE_PATH))
     args = parser.parse_args()
 
     with open(args.base) as handle:
         payload = json.load(handle)
-    with open(CAPTURE_PATH, "rb") as handle:
+    with open(args.capture, "rb") as handle:
         capture = pickle.load(handle)
 
     labels = set(payload["labels"])

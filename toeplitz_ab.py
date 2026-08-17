@@ -153,9 +153,10 @@ def main() -> None:
     parser.add_argument(
         "--out", default="sdpa_runs/toeplitz_ab_selector.json"
     )
+    parser.add_argument("--capture", default=str(CAPTURE_PATH))
     args = parser.parse_args()
 
-    with open(CAPTURE_PATH, "rb") as handle:
+    with open(args.capture, "rb") as handle:
         capture = pickle.load(handle)
     target = {
         label: float(value)

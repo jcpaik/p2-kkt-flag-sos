@@ -55,9 +55,12 @@ import numpy as np
 
 import sos_search
 from toeplitz_blocks import (
+    build_fiber_toeplitz_family,
     build_h2_complement_family,
     build_pair_complement_family,
     build_pair_family,
+    build_pair_hankel_localized,
+    build_pair_weighted_jensen,
     build_two_root_family,
     direct_family_matrix,
     family_name,
@@ -65,27 +68,46 @@ from toeplitz_blocks import (
 
 Label = tuple
 
-BASE_FLAGS = [
-    "--degree", "14", "--no-pointwise-sos",
-    "--harmonics", "--three-point-flags", "--four-point-flags",
-    "--two-root-flags",
-    "--gradient", "--potential", "--hessian", "--global-tangent-gaps",
-    "--rank-relations",
-    "--h2-weighted-target", "--h2-localized-all",
-    "--summary-only",
-]
+def base_flags(degree: int) -> list[str]:
+    return [
+        "--degree", str(degree), "--no-pointwise-sos",
+        "--harmonics", "--three-point-flags", "--four-point-flags",
+        "--two-root-flags",
+        "--gradient", "--potential", "--hessian",
+        "--global-tangent-gaps", "--rank-relations",
+        "--h2-weighted-target", "--h2-localized-all",
+        "--summary-only",
+    ]
 
+
+# t0 = -eps - 2/3, 40 significant digits (REGEN_NOTES.md A4);
+# 5em5 means eps = (16/3) 1e-5 = 1/18750 (t0 terminates exactly).
 SELECTOR_BOUNDS = {
-    # t0 = -eps - 2/3, 40 significant digits (REGEN_NOTES.md A4).
     "1em3": "-6.676666666666666666666666666666666666667E-1",
     "1em4": "-6.667666666666666666666666666666666666667E-1",
+    "5em5": "-6.6672E-1",
+    "2em5": "-6.666866666666666666666666666666666666667E-1",
+    "1em5": "-6.666766666666666666666666666666666666667E-1",
+}
+SELECTOR_SETS = {
+    ("deg14", "v1"): ["1em3", "1em4"],
+    ("deg14", "v2"): ["1em3", "1em4", "5em5"],
+    ("deg14", "v3"): ["1em3", "1em4", "5em5", "2em5"],
+    ("deg16", "v1"): ["1em4", "1em5"],
 }
 
-CAPTURE_PATH = Path(
+SCRATCH = Path(
     "/private/tmp/claude-501/-Users-jcpaik-Documents-research-"
-    "p2-kkt-flag-sos/2d5da291-4f4d-44a8-bb7b-d3ca80702a32/scratchpad/"
-    "toeplitz_capture_deg14_h2w.pkl"
+    "p2-kkt-flag-sos/2d5da291-4f4d-44a8-bb7b-d3ca80702a32/scratchpad"
 )
+
+
+def capture_path(degree: int, version: str) -> Path:
+    return SCRATCH / f"toeplitz_capture_deg{degree}_h2w_{version}.pkl"
+
+
+# Backward-compatible alias for the v1 deg-14 capture (toeplitz_ab.py).
+CAPTURE_PATH = SCRATCH / "toeplitz_capture_deg14_h2w.pkl"
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +185,8 @@ def exact_label_moment(label: Label, points, weights) -> Fraction:
 
 def exact_direct_family_matrix(family: dict, points, weights):
     """Exact-rational direct evaluation of the family matrix."""
+    from theta_atoms import poly3_mul as _poly3_mul
+
     count = len(points)
     gram = [
         [dot(points[a], points[b]) for b in range(count)]
@@ -174,6 +198,84 @@ def exact_direct_family_matrix(family: dict, points, weights):
         for y in range(count)
     )
     h2 = (3 * p2 - 1) / 2
+
+    def poly3_eval_exact(polynomial, t1, t2, s) -> Fraction:
+        return sum(
+            (
+                value * t1**i * t2**j * s**k
+                for (i, j, k), value in polynomial.items()
+            ),
+            Fraction(0),
+        )
+
+    if family["kind"] == "fiber_toeplitz":
+        from toeplitz_blocks import ABS_W2, w_even_power_re
+
+        order = family["order"]
+        a_polys = w_even_power_re(order)
+        absw2_pow = [{(0, 0, 0): Fraction(1)}]
+        for _ in range(order):
+            absw2_pow.append(_poly3_mul(absw2_pow[-1], ABS_W2))
+        indices = family["basis"]
+        g_basis = family["g_basis"]
+        size = len(indices)
+        matrix = [[Fraction(0)] * size for _ in range(size)]
+        for x1 in range(count):
+            for x2 in range(count):
+                s = gram[x1][x2]
+                rho = weights[x1] * weights[x2]
+                for y in range(count):
+                    t1, t2 = gram[x1][y], gram[x2][y]
+                    wy = rho * weights[y]
+                    for row, (j, ga) in enumerate(indices):
+                        for column, (k, gb) in enumerate(indices):
+                            m = abs(j - k)
+                            gi, gj, gk = g_basis[ga]
+                            hi, hj, hk = g_basis[gb]
+                            value = (
+                                poly3_eval_exact(
+                                    absw2_pow[order - m], t1, t2, s
+                                )
+                                * poly3_eval_exact(
+                                    a_polys[m], t1, t2, s
+                                )
+                                * t1 ** (gi + hi)
+                                * t2 ** (gj + hj)
+                                * s ** (gk + hk)
+                            )
+                            matrix[row][column] += wy * value
+        if family["h2loc"]:
+            matrix = [[h2 * v for v in row] for row in matrix]
+        return matrix
+
+    if family["kind"] in ("pair_hankel_loc", "pair_jensen_minor"):
+        degrees = family["basis"]
+        moment = {}
+        for power in range(0, 2 * max(degrees) + 5):
+            moment[power] = sum(
+                weights[x] * weights[y] * gram[x][y] ** power
+                for x in range(count)
+                for y in range(count)
+            )
+        size = len(degrees)
+        matrix = [[Fraction(0)] * size for _ in range(size)]
+        for row, a in enumerate(degrees):
+            for column, b in enumerate(degrees):
+                if family["kind"] == "pair_hankel_loc":
+                    matrix[row][column] = (
+                        moment[a + b] - moment[a + b + 2]
+                    )
+                else:
+                    matrix[row][column] = (
+                        moment[a + b]
+                        - 2 * moment[a + b + 2]
+                        + moment[a + b + 4]
+                        - (moment[a] - moment[a + 2])
+                        * (moment[b] - moment[b + 2])
+                    )
+        if family["h2loc"]:
+            matrix = [[h2 * v for v in row] for row in matrix]
+        return matrix
     if family["kind"] in ("pair_jensen", "h2_complement_pair"):
         degrees = family["basis"]
         pair_values = [
@@ -233,6 +335,8 @@ def exact_direct_family_matrix(family: dict, points, weights):
                 rho = weights[x1] * weights[x2]
                 if family["minor"]:
                     rho *= 1 - s * s
+                if family.get("s2"):
+                    rho *= s * s
                 for a in range(size):
                     for b in range(size):
                         second_ab = sum(
@@ -333,20 +437,83 @@ def trim_to_labels(family: dict, allowed: set) -> tuple[dict, int]:
         dropped += 1
 
 
-def export_families() -> list[dict]:
-    return [
-        build_pair_family(7),
-        build_pair_family(7, h2loc=True),
-        build_pair_complement_family(7, "G"),
-        build_two_root_family("even_00", 7),
-        build_two_root_family("even_11", 7),
-        build_two_root_family("even_00", 7, h2loc=True),
-        build_two_root_family("even_11", 7, h2loc=True),
-        build_h2_complement_family("even_00", 7, which="G"),
-        build_h2_complement_family("even_11", 7, which="G"),
-        build_h2_complement_family("odd_01", 7, which="G"),
-        build_h2_complement_family("odd_10", 7, which="G"),
+def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
+    """The exported family list.
+
+    v1 (the GMP-validated set: pole law 10.63x -> 9.59x/decade):
+    pair triple + even Jensen (plain, h2loc) + h2comp_gram all sectors.
+    v2 adds, per the T2 candidate tables (all measured with matrix
+    kill signs; docs/TOEPLITZ_BLOCKS_NOTE.md section 7): minor Jensen
+    (plain + h2loc), h2comp_cov, s^2-localized Jensen (collision
+    boundary; plain + h2loc), h2comp_gram minors (even + odd), and
+    the cap-5 odd-sector Jensen blocks (plain + h2loc).
+    Caps scale with the degree: cap = degree // 2, minors cap - 1.
+    """
+    cap = degree // 2
+    families = [
+        build_pair_family(cap),
+        build_pair_family(cap, h2loc=True),
+        build_pair_complement_family(cap, "G"),
+        build_two_root_family("even_00", cap),
+        build_two_root_family("even_11", cap),
+        build_two_root_family("even_00", cap, h2loc=True),
+        build_two_root_family("even_11", cap, h2loc=True),
+        build_h2_complement_family("even_00", cap, which="G"),
+        build_h2_complement_family("even_11", cap, which="G"),
+        build_h2_complement_family("odd_01", cap, which="G"),
+        build_h2_complement_family("odd_10", cap, which="G"),
     ]
+    if version in ("v2", "v3"):
+        minor_cap = cap - 1
+        odd_cap = cap - 2
+        for sector in ("even_00", "even_11"):
+            families += [
+                build_two_root_family(sector, minor_cap, minor=True),
+                build_two_root_family(
+                    sector, minor_cap, minor=True, h2loc=True
+                ),
+                build_h2_complement_family(
+                    sector, minor_cap, which="A"
+                ),
+                build_two_root_family(sector, minor_cap, s2=True),
+                build_two_root_family(
+                    sector, minor_cap, s2=True, h2loc=True
+                ),
+                build_h2_complement_family(
+                    sector, minor_cap, minor=True, which="G"
+                ),
+            ]
+        for sector in ("odd_01", "odd_10"):
+            families += [
+                build_two_root_family(sector, odd_cap),
+                build_two_root_family(sector, odd_cap, h2loc=True),
+                build_h2_complement_family(
+                    sector, minor_cap, minor=True, which="G"
+                ),
+            ]
+    if version == "v3":
+        # Fiber-Toeplitz blocks (trigonometric moment matrices of the
+        # leaf's azimuthal fiber; docs/TOEPLITZ_BLOCKS_NOTE.md section 8)
+        # and the pair-sector moment families, targeting the v2
+        # residual (p2 x triangle 50%, triangle 17%, pair products 28%).
+        ft_order_deep = 3
+        ft_order_radial = 2
+        radial_cap = cap - 4
+        for h2loc in (False, True):
+            families += [
+                build_fiber_toeplitz_family(
+                    ft_order_deep, 0, "even_00", h2loc=h2loc
+                ),
+                build_fiber_toeplitz_family(
+                    ft_order_radial, radial_cap, "even_00", h2loc=h2loc
+                ),
+                build_fiber_toeplitz_family(
+                    ft_order_radial, radial_cap, "even_11", h2loc=h2loc
+                ),
+                build_pair_hankel_localized(cap - 1, h2loc=h2loc),
+                build_pair_weighted_jensen(cap - 3, h2loc=h2loc),
+            ]
+    return families
 
 
 def verify_family(family: dict) -> None:
@@ -412,9 +579,10 @@ def family_float_matrices(family: dict) -> dict:
 # Interception driver
 # ---------------------------------------------------------------------------
 
-def run_export(out_path: str) -> None:
+def run_export(out_path: str, degree: int, version: str) -> None:
     original = sos_search.export_sdpa_problem
     report: dict = {}
+    save_path = capture_path(degree, version)
 
     def patched(
         path, digits, target, ordered_labels,
@@ -428,9 +596,16 @@ def run_export(out_path: str) -> None:
             f"{len(ordered_labels)} labels",
             file=sys.stderr,
         )
-        for family in export_families():
+        for family in export_families(degree, version):
             before = family["size"]
             family, dropped = trim_to_labels(family, allowed)
+            if family["size"] == 0:
+                print(
+                    f"[toeplitz] {family_name(family)} trimmed away "
+                    f"entirely, skipped",
+                    file=sys.stderr,
+                )
+                continue
             verify_family(family)
             extra_blocks.append(
                 (family_name(family), family_float_matrices(family))
@@ -454,7 +629,7 @@ def run_export(out_path: str) -> None:
                 + ")",
                 file=sys.stderr,
             )
-        with open(CAPTURE_PATH, "wb") as handle:
+        with open(save_path, "wb") as handle:
             pickle.dump(
                 {
                     "target": target,
@@ -467,7 +642,7 @@ def run_export(out_path: str) -> None:
                 handle,
             )
         print(
-            f"[toeplitz] capture saved to {CAPTURE_PATH}",
+            f"[toeplitz] capture saved to {save_path}",
             file=sys.stderr,
         )
         report["families"] = family_records
@@ -481,7 +656,8 @@ def run_export(out_path: str) -> None:
     try:
         argv_backup = sys.argv
         sys.argv = (
-            ["sos_search.py", "--export-sdpa", out_path] + BASE_FLAGS
+            ["sos_search.py", "--export-sdpa", out_path]
+            + base_flags(degree)
         )
         try:
             result = sos_search.solve(sos_search.parse_args())
@@ -500,8 +676,10 @@ def run_export(out_path: str) -> None:
                     "adjoined first-class; docs/TOEPLITZ_BLOCKS_NOTE"
                     ".md.  bound = objValPrimal + 2/3."
                 ),
+                "version": version,
+                "degree": degree,
                 "families": report.get("families", []),
-                "base_flags": BASE_FLAGS,
+                "base_flags": base_flags(degree),
             },
             indent=1,
         )
@@ -509,10 +687,16 @@ def run_export(out_path: str) -> None:
     print(f"wrote {sidecar_path}")
 
 
-def run_selectors(out_path: str) -> None:
-    for tag, bound in SELECTOR_BOUNDS.items():
+def run_selectors(out_path: str, degree: int, version: str) -> None:
+    prefix = "sel_toep" if degree == 14 else "sel16_toep"
+    if version == "v2":
+        prefix = prefix.replace("toep", "toep2")
+    elif version == "v3":
+        prefix = prefix.replace("toep", "toep3")
+    for tag in SELECTOR_SETS[(f"deg{degree}", version)]:
+        bound = SELECTOR_BOUNDS[tag]
         selector_path = str(
-            Path(out_path).with_name(f"sel_toep_{tag}.dat-s")
+            Path(out_path).with_name(f"{prefix}_{tag}.dat-s")
         )
         completed = subprocess.run(
             [
@@ -529,15 +713,24 @@ def run_selectors(out_path: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--out")
+    parser.add_argument("--degree", type=int, default=14)
     parser.add_argument(
-        "--out", default="sdpa_runs/deg14_h2w_h2all_toep.dat-s"
+        "--version", choices=["v1", "v2", "v3"], default="v1"
     )
     parser.add_argument("--selectors", action="store_true")
     args = parser.parse_args()
+    default_out = {
+        (14, "v1"): "sdpa_runs/deg14_h2w_h2all_toep.dat-s",
+        (14, "v2"): "sdpa_runs/deg14_h2w_h2all_toep2.dat-s",
+        (14, "v3"): "sdpa_runs/deg14_h2w_h2all_toep3.dat-s",
+        (16, "v1"): "sdpa_runs/deg16_h2w_h2all_toep.dat-s",
+    }[(args.degree, args.version)]
+    out_path = args.out or default_out
     if args.selectors:
-        run_selectors(args.out)
+        run_selectors(out_path, args.degree, args.version)
         return
-    run_export(args.out)
+    run_export(out_path, args.degree, args.version)
 
 
 if __name__ == "__main__":
