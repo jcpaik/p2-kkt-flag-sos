@@ -384,6 +384,9 @@ All under `sdpa_runs/cylinder/` (gitignored, like the rest of `sdpa_runs/`):
 * `m1_certificate.json` — exact rational M1 certificate (8 Handelman terms,
   denominators < 10^8).  Verify:
   `.venv/bin/python cylinder_cert.py m1 --verify sdpa_runs/cylinder/m1_certificate.json`.
+  A committed copy lives at `certificates/m1_axisymmetric.json` (same
+  file; verified 6/6 from that path too) so the theorem's witness
+  survives any `sdpa_runs/` wipe.
 * `m2_scan.json` — structured violation scan of the designed `B` (float).
 * `m2_optimize.json` — multi-atom differential-evolution minima of `B`.
 * `m2_verdict.json` — the exact numbers of §5–§6 in one place.
