@@ -18,6 +18,9 @@ Where things stand (details and provenance in §3–§6 below):
 | projected-dual escape ray | pure $g_4$; **killed** by the scalar cuts (`--find-ray` infeasible A/B; re-verified 2026-08-17) | §4, docs/GAP_CUTS_NOTE.md |
 | **the surviving escape, fingerprinted (2026-08-17)** | the $h_2$-**localized theta tower**: $78\%$ $p_2\times$(graph_4/triangle/pair-products), $22\%$ connected graph_4/triangle, $0\%$ pair sector — every scalar $p_k$-invariant is blind to it | docs/UNPROJECTED_ESCAPE_NOTE.md |
 | second weight candidate | $e_5(I-A_2)=\det(I-A_2)$: valid, dense-positive, vanishes on the **whole pole–equator stratum**; needs `graph_5` labels | docs/MULTI_WEIGHT_PROGRAM.md |
+| theta-atom adjunction (measured 2026-08-17) | localized atoms re-bound the projected dual (`infeasible` A/B — first (E1)-derived mechanism); but **inert on the finite-$\varepsilon$ pole**: theta-augmented selector traces $765.0/8133.57$ = controls to 6 digits | docs/THETA_ATOM_NOTE.md |
+| **two new exactly-solved sub-cases (2026-08-17)** | axisymmetric measures (rational Handelman-8 certificate, 6/6); antipodal circle-pairs, any latitude (Toeplitz coupling, 27/27, sharp at ONB) | §1, docs/CYLINDRICAL_DOMINATION.md |
+| scalar mode-domination | **falsified exactly** (min $-128159/27456$; cross shadow $-1/192$): the missing constraint is measure-valued Toeplitz joint positivity | docs/CYLINDRICAL_DOMINATION.md |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
@@ -56,15 +59,24 @@ docs/GAP_CUTS_NOTE.md.
 store was wiped and regenerated first; see the dashboard and
 docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
 
-1. **Kill the fingerprinted escape** (in progress, two independent
-   prongs): (a) $h_2$-**localized theta-atom windows** — the diagonal
-   window cuts of docs/THETA_ATOM_NOTE.md applied to the
-   `h2loc_two_root` modulated family, paired first against the stored
-   escape direction `sdpa_runs/fingerprint_D_e3e4.json` (sign rule:
-   positive window mass ⇒ the cut kills the ray); (b) **arity-2
-   weighted-(E1) projection** of the localized module (§6 open item).
-   Success test for either: the escape direction becomes infeasible /
-   the re-solved selector trace law flattens.
+1. **Kill the fingerprinted escape** (one prong measured, two open):
+   (a) ~~$h_2$-localized theta-atom windows~~ — **measured inert**
+   (2026-08-17): the theta-augmented weighted selectors reproduce the
+   control traces $765.0/8133.57$ to 6 digits at
+   $\varepsilon=10^{-3}/10^{-4}$; the 136 window/cap cuts block the
+   fingerprinted direction but certificate mass routes around them
+   (docs/THETA_ATOM_NOTE.md verdict: recession repair only).
+   (b) **arity-2 weighted-(E1) projection** of the localized module —
+   in progress (reduced deg-16/18 exports being produced).
+   (c) **NEW, from the circle-pair theorem: measure-valued Toeplitz
+   blocks.**  The exact mechanism that closed the circle-pair case is
+   the joint positivity of azimuthal-mode Toeplitz matrices
+   ($|\zeta_{2k}|\ge2|\zeta_k|^2-1$); its flag-algebra incarnation is
+   PSD blocks pairing modulation-$k$ against modulation-$2k$ two-root
+   generators over a common root pair — matrix analogues of the
+   inert scalar windows, loading exactly on the escape's
+   $p_2\times$(high-modulation) labels.  Derive validity, implement,
+   A/B against `fingerprint_D_e3e4.json`, re-run the trace law.
 2. **Degree-16 weighted dual solve** (running 2026-08-17,
    `deg16_h2w_h2all.dat-s`, m = 1243, 128-bit).  Targets: weighted
    deg-14 $-2.7909\times10^{-5}$, unweighted deg-16
@@ -140,6 +152,31 @@ in general, and $=\tfrac13$ exactly under isotropy — but the isotropic version
 * **Measures on a great circle.** $E(\nu)=|\hat\nu(2)|^2+|\hat\nu(6)|^2+\tfrac23\ \ge\ \tfrac23>0$.
   Immediate from $K=\cos6\theta+\cos2\theta+\tfrac23$; the planar Fourier basis has
   no negative coefficient. This is the only place the problem is easy.
+* **Axisymmetric measures (2026-08-17, new).**  $E\ge0$ for every
+  rotation-invariant $\mu$ — equivalently the kernel
+  $c_0(s,t)$ ($s=a^2$; azimuthal average of $K$) is copositive on
+  $[0,1]$.  Exact rational certificate: symmetric-Handelman degree 8
+  (the feasibility threshold; degrees 3–7 infeasible) + a PSD Gram
+  part whose form vanishes at the zero measure
+  $\sigma^*=\tfrac23\delta_0+\tfrac13\delta_1$, every Handelman term
+  corner-vanishing.  Verified independently in pure rational
+  arithmetic: `cylinder_cert.py m1 --verify
+  sdpa_runs/cylinder/m1_certificate.json` (6/6).  See
+  [Cylindrical domination](docs/CYLINDRICAL_DOMINATION.md).
+* **Antipodal circle-pair measures (2026-08-17, new).**  $E\ge0$ for
+  every antipodal measure supported on a pair of antipodal circles of
+  *any* latitude with *arbitrary* fibers, with equality exactly on the
+  ONB orbit.  Proof = scalar mode domination + the Toeplitz/Herglotz
+  coupling $|\zeta_{2k}|\ge2|\zeta_k|^2-1$ for the mode pairs
+  $(2,4)$ and $(3,6)$ (double-angle trigonometry of the fiber), seven
+  Sturm-count facts, and the sharp factorization
+  $4v_6+v_3=4(1-s)^3(3s-1)^2(6s+1)$.  Machine-checked:
+  `cylinder_cert.py pair-theorem` (27/27).  Notably *pure scalar*
+  domination is provably insufficient even here (cross shadow
+  $-1/192$ at $s=\tfrac12$, ONB shadow $-64/729$ at $s=\tfrac13$):
+  the mode-$2k$/mode-$k$ coupling is essential — the first exact
+  confirmation that the missing information is Toeplitz-type joint
+  positivity, not scalar bounds.
 * **Pole–equator measures.** For $\mu=w\,\delta_{\pm e}+(1-w)\nu$ with $\nu$ on $e^\perp$:
   $$\boxed{\;E(\mu)=6\Big(w-\tfrac13\Big)^2+(1-w)^2\Big(|\hat\nu(2)|^2+|\hat\nu(6)|^2\Big)\;}$$
   an exact SOS identity. Zero iff $w=\tfrac13$ and $\hat\nu(2)=\hat\nu(6)=0$.
@@ -168,10 +205,13 @@ Consequences, both verified:
 $p^2=(1-a^2)(1-b^2)$,
 $$K(x\cdot y)=\sum_{k=0}^{6}c_k(a,b)\cos\big(k(\varphi_x-\varphi_y)\big),$$
 $$c_6=p^6,\quad c_5=12abp^5,\quad c_4=6p^4(11a^2b^2-a^2-b^2),$$
-$$c_3=4abp^3(55a^2b^2-15a^2-15b^2+3),\ \ c_2,\ c_0 \text{ as computed}.$$
+$$c_3=4abp^3(55a^2b^2-15a^2-15b^2+3),\ \ c_2,\ c_1,\ c_0 \text{ as computed}.$$
 $c_5,c_6$ are rank-one positive kernels; $c_0,c_2,c_3,c_4$ are **not** PSD
 (determinants $-34992$, $-6480$, $-60$, $-1$). So this decomposition alone does
 not certify — as it must not, since $K$ is not a positive-definite kernel.
+*(Correction 2026-08-17: $c_1\not\equiv0$ — the odd mode is present;
+exact formulas for all $c_k$ are hard-coded and 16/16-verified in
+`cylinder_cert.py`.)*
 
 ## 3. State of the SDP search
 
