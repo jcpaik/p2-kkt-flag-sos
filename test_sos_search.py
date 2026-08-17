@@ -422,3 +422,308 @@ def test_weighted_projection_loader_round_trip(tmp_path):
     basis, vectors = sectors["two_root_even_00"]
     assert len(vectors) == 6  # alpha,beta in {1,s^2}; gamma in {s,s^3}
     assert spin2 is not None
+
+
+# ---------------------------------------------------------------------------
+# e5(I - A2) machinery (docs/E5_WEIGHT_NOTE.md)
+
+
+def test_gap_power_trace_small():
+    # tr(A2) = 1, tr(A2^2) = 1 - 12 p2 + 16 p4 (chi2 of rho_x rho_y).
+    assert search.gap_power_trace_vector(1) == {
+        ("constant",): Fraction(1)
+    }
+    assert search.gap_power_trace_vector(2) == {
+        ("constant",): Fraction(1),
+        ("pair", 2): Fraction(-12),
+        ("pair", 4): Fraction(16),
+    }
+
+
+def test_gap_elementary_matches_hardcoded_cuts():
+    """gap_elementary_vector reproduces the audited e2/e3/e4 cut labels."""
+
+    assert search.gap_elementary_vector(2) == {
+        ("constant",): Fraction(6),
+        ("pair", 2): Fraction(6),
+        ("pair", 4): Fraction(-8),
+    }
+    assert search.gap_elementary_vector(3) == {
+        ("constant",): Fraction(8, 3),
+        ("pair", 2): Fraction(32),
+        ("pair", 4): Fraction(-32),
+        ("triangle", 1, 1, 1): Fraction(-40, 3),
+        ("triangle", 0, 2, 2): Fraction(-32),
+        ("triangle", 1, 1, 3): Fraction(64),
+        ("triangle", 2, 2, 2): Fraction(-64, 3),
+    }
+    e4 = search.gap_elementary_vector(4)
+    assert e4[("constant",)] == Fraction(-22, 3)
+    assert e4[("graph_4", 0, 1, 1, 2, 2, 1)] == Fraction(256)
+    assert e4[
+        search.multiply_labels(("pair", 2), ("pair", 4))
+    ] == Fraction(-48)
+    assert len(e4) == 16
+
+
+def test_e5_structure_and_face_values():
+    e5 = search.gap_elementary_vector(5)
+    assert len(e5) == 35
+    cycle_labels = [label for label in e5 if label[0] == "graph_5"]
+    assert len(cycle_labels) == 11
+    # per-vertex degree <= 4: e5 fits any degree budget >= 10; the
+    # obstruction was label arity only.
+    for label in cycle_labels:
+        matrix = search.graph_matrix(5, tuple(label[1:]))
+        assert max(sum(row) for row in matrix) <= 4
+    # Face-vanishing (Fact 2): every pole-equator measure kills e5.
+    assert sum(
+        coefficient * search.pole_equator_label_value(label)
+        for label, coefficient in e5.items()
+    ) == 0
+    for order in (3, 4, 5, 6):
+        assert sum(
+            coefficient * search.pole_equator_label_value(label, order)
+            for label, coefficient in e5.items()
+        ) == 0
+    # ONB (spectrum {1,1,-1/3,-1/3,-1/3}): e5 = 0 there too.
+    assert sum(
+        coefficient * search.onb_label_value(label)
+        for label, coefficient in e5.items()
+    ) == 0
+    # Dense positivity anchor (Fact 3): uniform measure gives (4/5)^5.
+    assert sum(
+        coefficient * search.uniform_label_value(label)
+        for label, coefficient in e5.items()
+    ) == Fraction(1024, 3125)
+
+
+def test_uniform_label_values():
+    assert search.uniform_label_value(("pair", 2)) == Fraction(1, 3)
+    assert search.uniform_label_value(("pair", 4)) == Fraction(1, 5)
+    assert search.uniform_label_value(("pair", 3)) == 0
+    assert search.uniform_label_value(("triangle", 1, 1, 1)) == Fraction(
+        1, 9
+    )
+    # 4-cycle: integrate one vertex -> (1/3) triangle(1,1,1).
+    assert search.uniform_label_value(
+        ("graph_4", 1, 0, 1, 1, 0, 1)
+    ) == Fraction(1, 27)
+    assert search.uniform_label_value(
+        search.multiply_labels(("pair", 2), ("pair", 4))
+    ) == Fraction(1, 15)
+
+
+def test_e5_expansion_matches_direct_determinant_on_atoms():
+    """Exact rational atomic measure: label expansion == det(I - A2)."""
+
+    import itertools
+
+    import sympy as sp
+
+    atoms = [
+        (Fraction(3, 5), Fraction(4, 5), Fraction(0)),
+        (Fraction(0), Fraction(3, 5), Fraction(4, 5)),
+        (Fraction(4, 9), Fraction(4, 9), Fraction(7, 9)),
+    ]
+    weights = [Fraction(1, 2), Fraction(1, 3), Fraction(1, 6)]
+    for atom in atoms:
+        assert sum(value * value for value in atom) == 1
+
+    def dot(left, right):
+        return sum(a * b for a, b in zip(left, right))
+
+    def label_value(label):
+        if label == ("constant",):
+            return Fraction(1)
+        if label[0] == "product":
+            value = Fraction(1)
+            for factor in label[1:]:
+                value *= label_value(factor)
+            return value
+        if label[0] == "pair":
+            vertex_count = 2
+        elif label[0] == "triangle":
+            vertex_count = 3
+        else:
+            vertex_count = int(label[0].split("_")[1])
+        exponents = tuple(label[1:])
+        edges = search.graph_edges(vertex_count)
+        total = Fraction(0)
+        for assignment in itertools.product(
+            range(len(atoms)), repeat=vertex_count
+        ):
+            term = Fraction(1)
+            for vertex in assignment:
+                term *= weights[vertex]
+            for index, (left, right) in enumerate(edges):
+                power = exponents[index]
+                if power:
+                    term *= dot(
+                        atoms[assignment[left]], atoms[assignment[right]]
+                    ) ** power
+            total += term
+        return total
+
+    e5 = search.gap_elementary_vector(5)
+    expansion_value = sum(
+        coefficient * label_value(label)
+        for label, coefficient in e5.items()
+    )
+
+    basis = [
+        sp.diag(1, -1, 0),
+        sp.diag(1, 1, -2),
+        sp.Matrix([[0, 1, 0], [1, 0, 0], [0, 0, 0]]),
+        sp.Matrix([[0, 0, 1], [0, 0, 0], [1, 0, 0]]),
+        sp.Matrix([[0, 0, 0], [0, 0, 1], [0, 1, 0]]),
+    ]
+    coordinate_matrix = sp.Matrix(
+        [
+            [element[0, 0] for element in basis],
+            [element[1, 1] for element in basis],
+            [element[0, 1] for element in basis],
+            [element[0, 2] for element in basis],
+            [element[1, 2] for element in basis],
+        ]
+    )
+    columns = []
+    for element in basis:
+        image = sp.zeros(3, 3)
+        for weight, atom in zip(weights, atoms):
+            vector = sp.Matrix(
+                [sp.Rational(c.numerator, c.denominator) for c in atom]
+            )
+            rho = 2 * vector * vector.T - sp.eye(3)
+            image += (
+                sp.Rational(weight.numerator, weight.denominator)
+                * rho
+                * element
+                * rho
+            )
+        columns.append(
+            coordinate_matrix.solve(
+                sp.Matrix(
+                    [
+                        image[0, 0],
+                        image[1, 1],
+                        image[0, 1],
+                        image[0, 2],
+                        image[1, 2],
+                    ]
+                )
+            )
+        )
+    determinant = (sp.eye(5) - sp.Matrix.hstack(*columns)).det()
+    assert (
+        Fraction(int(determinant.p), int(determinant.q)) == expansion_value
+    )
+
+
+def test_e5_weighted_target_labels_are_covered_and_rationalizable():
+    """Every label of kappa*e5*E lies in the e5 cut/localized blocks, and
+    every produced float coefficient survives exact rationalization."""
+
+    energy = {
+        ("constant",): Fraction(-4, 3),
+        ("pair", 2): Fraction(20),
+        ("pair", 4): Fraction(-48),
+        ("pair", 6): Fraction(32),
+    }
+    e5 = search.gap_elementary_vector(5)
+    product = search.multiply_label_vectors(e5, energy)
+    block_labels = set(e5)
+    for degree in (2, 4, 6):
+        block_labels.update(
+            search.multiply_label_vectors(
+                e5, search.exact_harmonic_pair_vector(degree)
+            )
+        )
+    assert set(product) <= block_labels
+    for kappa in (Fraction(1, 4), Fraction(1), Fraction(4)):
+        for vector in (e5, product):
+            for coefficient in vector.values():
+                scaled = kappa * coefficient
+                assert search.rationalize_float(float(scaled)) == scaled
+
+
+def test_exact_harmonic_pair_vector():
+    assert search.exact_harmonic_pair_vector(2) == {
+        ("constant",): Fraction(-1, 2),
+        ("pair", 2): Fraction(3, 2),
+    }
+    # h2-weighted target coefficients (the target refactor guard).
+    energy = {
+        ("constant",): Fraction(-4, 3),
+        ("pair", 2): Fraction(20),
+        ("pair", 4): Fraction(-48),
+        ("pair", 6): Fraction(32),
+    }
+    h2 = {("constant",): Fraction(-1, 2), ("pair", 2): Fraction(3, 2)}
+    weighted = search.multiply_label_vectors(h2, energy)
+    assert weighted == {
+        ("constant",): Fraction(2, 3),
+        ("pair", 2): Fraction(-12),
+        ("pair", 4): Fraction(24),
+        ("pair", 6): Fraction(-16),
+        search.multiply_labels(("pair", 2), ("pair", 2)): Fraction(30),
+        search.multiply_labels(("pair", 2), ("pair", 4)): Fraction(-72),
+        search.multiply_labels(("pair", 2), ("pair", 6)): Fraction(48),
+    }
+
+
+def test_e5_coverage_families_on_reference_measures():
+    """Upper AM-GM cut and e5-Hankel localizations at exact reference
+    measures: equality at uniform, vanishing on the pole-equator face."""
+
+    e5 = search.gap_elementary_vector(5)
+    complement = {label: -value for label, value in e5.items()}
+    complement[("constant",)] = complement.get(
+        ("constant",), Fraction(0)
+    ) + Fraction(1024, 3125)
+
+    def value(vector, evaluator):
+        return sum(
+            coefficient * evaluator(label)
+            for label, coefficient in vector.items()
+        )
+
+    # AM-GM cut: equality exactly at the uniform measure.
+    assert value(complement, search.uniform_label_value) == 0
+    assert value(complement, search.onb_label_value) == Fraction(
+        1024, 3125
+    )
+    assert value(complement, search.pole_equator_label_value) == Fraction(
+        1024, 3125
+    )
+    # e5-Hankel entries at uniform: e5 * [[1, 1/3], [1/3, 1/5]] and
+    # e5 * [[1/3, 1/5], [1/5, 1/7]]; both PSD, dets > 0.
+    scale = Fraction(1024, 3125)
+    for powers in ((0, 2), (1, 3)):
+        entries = {}
+        for row_power in powers:
+            for column_power in powers:
+                total = row_power + column_power
+                pair_vector = (
+                    {("constant",): Fraction(1)}
+                    if total == 0
+                    else {("pair", total): Fraction(1)}
+                )
+                entries[(row_power, column_power)] = value(
+                    search.multiply_label_vectors(e5, pair_vector),
+                    search.uniform_label_value,
+                )
+        a = entries[(powers[0], powers[0])]
+        b = entries[(powers[0], powers[1])]
+        d = entries[(powers[1], powers[1])]
+        assert a == scale * Fraction(1, 2 * powers[0] + 1)
+        assert d == scale * Fraction(1, 2 * powers[1] + 1)
+        assert a > 0 and a * d - b * b > 0
+        # and the whole matrix vanishes on the pole-equator face
+        face = value(
+            search.multiply_label_vectors(
+                e5, {("pair", 2 * powers[1]): Fraction(1)}
+            ),
+            search.pole_equator_label_value,
+        )
+        assert face == 0

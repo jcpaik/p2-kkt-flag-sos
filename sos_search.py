@@ -314,15 +314,258 @@ def pole_equator_label_value(
     )
 
 
+def multiply_label_vectors(
+    left: dict[Label, Fraction],
+    right: dict[Label, Fraction],
+) -> dict[Label, Fraction]:
+    """Product of two moment functionals as a label vector.
+
+    For a fixed measure the value of a label vector is a number, and the
+    product of two such numbers expands over disconnected (independent
+    sample) products of the underlying labels.  ``multiply_labels``
+    performs exactly this disconnected composition.
+    """
+
+    product: dict[Label, Fraction] = {}
+    for left_label, left_coefficient in left.items():
+        for right_label, right_coefficient in right.items():
+            label = multiply_labels(left_label, right_label)
+            updated = (
+                product.get(label, Fraction(0))
+                + left_coefficient * right_coefficient
+            )
+            if updated:
+                product[label] = updated
+            else:
+                product.pop(label, None)
+    return product
+
+
+@lru_cache(maxsize=None)
+def rho_word_trace_terms(word_length: int) -> tuple[
+    tuple[Fraction, GraphExponent], ...
+]:
+    """tr(rho_{x_1} ... rho_{x_k}) as a graph polynomial on k vertices.
+
+    rho_x = 2 x x^T - I.  Expanding the product over the choice of the
+    2 x x^T or -I factor at each position, a subset S of chosen positions
+    contributes 2^{|S|} (-1)^{k - |S|} times the cyclic product of the
+    consecutive inner products of the samples in S (in word order); the
+    empty subset contributes (-1)^k tr I = 3 (-1)^k and singletons
+    contribute tr(x x^T) = 1.
+    """
+
+    edges = graph_edges(word_length)
+    edge_indices = {edge: index for index, edge in enumerate(edges)}
+    terms: list[tuple[Fraction, GraphExponent]] = []
+    for size in range(word_length + 1):
+        for subset in itertools.combinations(range(word_length), size):
+            coefficient = Fraction(
+                (-1) ** (word_length - size) * 2**size
+            )
+            exponent = [0] * len(edges)
+            if size == 0:
+                coefficient *= 3
+            elif size >= 2:
+                for left, right in zip(
+                    subset,
+                    subset[1:] + (subset[0],),
+                    strict=True,
+                ):
+                    edge = (min(left, right), max(left, right))
+                    exponent[edge_indices[edge]] += 1
+            terms.append((coefficient, tuple(exponent)))
+    return tuple(terms)
+
+
+def gap_power_trace_vector(power: int) -> dict[Label, Fraction]:
+    """Exact label expansion of tr(A_2^k), A_2 = int pi_2(rho_x) dmu.
+
+    tr(A_2^k) = E[chi_2(rho_{x_1} ... rho_{x_k})] over k independent
+    samples, with chi_2(R) = (tr R)^2 - tr R - 1 the spin-2 character on
+    SO(3) (each rho_x is a rotation by pi, so every word lies in SO(3)).
+    """
+
+    terms = rho_word_trace_terms(power)
+    vector: dict[Label, Fraction] = {}
+
+    def accumulate(label: Label | None, value: Fraction) -> None:
+        if label is None or not value:
+            return
+        updated = vector.get(label, Fraction(0)) + value
+        if updated:
+            vector[label] = updated
+        else:
+            vector.pop(label, None)
+
+    for left_coefficient, left_exponent in terms:
+        for right_coefficient, right_exponent in terms:
+            exponent = tuple(
+                left + right
+                for left, right in zip(
+                    left_exponent, right_exponent, strict=True
+                )
+            )
+            label, reduction = graph_expectation_label(power, exponent)
+            accumulate(label, left_coefficient * right_coefficient * reduction)
+    for coefficient, exponent in terms:
+        label, reduction = graph_expectation_label(power, exponent)
+        accumulate(label, -coefficient * reduction)
+    accumulate(("constant",), Fraction(-1))
+    return vector
+
+
+def a2_elementary_vector(order: int) -> dict[Label, Fraction]:
+    """e_k of the eigenvalues of A_2 via Newton's identities, exact."""
+
+    elementary: list[dict[Label, Fraction]] = [
+        {("constant",): Fraction(1)}
+    ]
+    powers = [gap_power_trace_vector(k) for k in range(1, order + 1)]
+    for k in range(1, order + 1):
+        accumulated: dict[Label, Fraction] = {}
+        for i in range(1, k + 1):
+            term = multiply_label_vectors(elementary[k - i], powers[i - 1])
+            sign = Fraction((-1) ** (i - 1), k)
+            for label, coefficient in term.items():
+                updated = (
+                    accumulated.get(label, Fraction(0))
+                    + sign * coefficient
+                )
+                if updated:
+                    accumulated[label] = updated
+                else:
+                    accumulated.pop(label, None)
+        elementary.append(accumulated)
+    return elementary[order]
+
+
+def gap_elementary_vector(order: int) -> dict[Label, Fraction]:
+    """Exact label expansion of e_k(I - A_2) on the 5-dim spin-2 space.
+
+    e_k(I - A_2) = sum_j (-1)^j C(5 - j, k - j) e_j(A_2).  For k = 5 this
+    is det(I - A_2) = e_5(B), the face-vanishing multiplier of
+    docs/MULTI_WEIGHT_PROGRAM.md: it is >= 0 for every measure (operator
+    bound 0 <= I - A_2 <= 2I), vanishes identically on the pole-equator
+    stratum, and is strictly positive on a weak-* dense set.
+    """
+
+    vector: dict[Label, Fraction] = {}
+    for j in range(order + 1):
+        weight = Fraction((-1) ** j * math.comb(5 - j, order - j))
+        if not weight:
+            continue
+        for label, coefficient in a2_elementary_vector(j).items():
+            updated = vector.get(label, Fraction(0)) + weight * coefficient
+            if updated:
+                vector[label] = updated
+            else:
+                vector.pop(label, None)
+    return vector
+
+
+def _uniform_pairings(items: list[int]):
+    """All perfect matchings of a list of half-edge endpoints."""
+
+    if not items:
+        yield []
+        return
+    first, rest = items[0], items[1:]
+    for index in range(len(rest)):
+        partner = rest[index]
+        remaining = rest[:index] + rest[index + 1 :]
+        for tail in _uniform_pairings(remaining):
+            yield [(first, partner)] + tail
+
+
+def _uniform_graph_moment(matrix: list[list[int]]) -> Fraction:
+    """Exact uniform-measure moment of a Gram-multigraph monomial.
+
+    Integrates one vertex at a time with the S^2 Wick formula
+    E[x^{(2m)}] = (sum over pairings of delta products) / (3*5*...*(2m+1)).
+    """
+
+    degrees = [sum(row) for row in matrix]
+    if any(degree % 2 for degree in degrees):
+        return Fraction(0)
+    active = [vertex for vertex, degree in enumerate(degrees) if degree]
+    if not active:
+        return Fraction(1)
+    if len(active) < len(matrix):
+        return _uniform_graph_moment(induced_matrix(matrix, active))
+    if len(matrix) == 1:
+        return Fraction(1)
+
+    vertex = min(range(len(matrix)), key=lambda index: degrees[index])
+    half_edges = [
+        neighbor
+        for neighbor, multiplicity in enumerate(matrix[vertex])
+        if neighbor != vertex
+        for _ in range(multiplicity)
+    ]
+    denominator = 1
+    for index in range(1, len(half_edges) // 2 + 1):
+        denominator *= 2 * index + 1
+    remaining = [other for other in range(len(matrix)) if other != vertex]
+    total = Fraction(0)
+    for pairing in _uniform_pairings(half_edges):
+        reduced = [
+            [matrix[left][right] for right in remaining]
+            for left in remaining
+        ]
+        position = {original: new for new, original in enumerate(remaining)}
+        for left, right in pairing:
+            if left == right:
+                continue
+            reduced[position[left]][position[right]] += 1
+            reduced[position[right]][position[left]] += 1
+        total += _uniform_graph_moment(reduced)
+    return total / denominator
+
+
+def uniform_label_value(label: Label) -> Fraction:
+    """Evaluate a formal moment label on the uniform measure on S^2."""
+
+    if label == ("constant",):
+        return Fraction(1)
+    if label[0] == "product":
+        value = Fraction(1)
+        for factor in label[1:]:
+            value *= uniform_label_value(factor)  # type: ignore[arg-type]
+        return value
+    if label[0] == "pair":
+        vertex_count = 2
+    elif label[0] == "triangle":
+        vertex_count = 3
+    elif isinstance(label[0], str) and label[0].startswith("graph_"):
+        vertex_count = int(label[0].split("_")[1])
+    else:
+        raise ValueError(f"Unsupported uniform label: {label}")
+    return _uniform_graph_moment(
+        graph_matrix(
+            vertex_count,
+            tuple(int(value) for value in label[1:]),
+        )
+    )
+
+
 def rationalize_float(
     value: float,
     maximum_denominator: int = 10**9,
     tolerance: float = 1e-10,
 ) -> Fraction:
-    """Recover the exact small rational used to construct a float."""
+    """Recover the exact small rational used to construct a float.
+
+    The tolerance is relative for large magnitudes: a coefficient built
+    as float(p/q) with modest q carries an absolute rounding error of
+    order |value| * 2^-53, so an absolute cutoff would spuriously reject
+    exact rationals of magnitude above ~1e5.
+    """
 
     rational = Fraction(float(value)).limit_denominator(maximum_denominator)
-    if abs(float(rational) - float(value)) > tolerance:
+    if abs(float(rational) - float(value)) > tolerance * max(
+        1.0, abs(float(value))
+    ):
         raise ValueError(f"Could not rationalize coefficient {value}")
     return rational
 
@@ -1255,20 +1498,26 @@ def h2_localized_flag_expectation_matrix(
     }
 
 
-def harmonic_pair_vector(degree: int) -> dict[Label, np.ndarray]:
+def exact_harmonic_pair_vector(degree: int) -> dict[Label, Fraction]:
+    """E[P_degree(X.Y)] >= 0 as an exact rational label vector."""
+
     variable = sp.symbols("t")
     polynomial = sp.Poly(sp.legendre(degree, variable), variable)
-    vector: dict[Label, float] = {}
+    vector: dict[Label, Fraction] = {}
     for (power,), coefficient in polynomial.terms():
         label, reduction_coefficient = pair_label(power)
-        vector[label] = vector.get(label, 0.0) + float(
+        value = (
             Fraction(int(coefficient.p), int(coefficient.q))
             * reduction_coefficient
         )
+        vector[label] = vector.get(label, Fraction(0)) + value
+    return {label: value for label, value in vector.items() if value}
+
+
+def harmonic_pair_vector(degree: int) -> dict[Label, np.ndarray]:
     return {
-        label: np.array([[value]])
-        for label, value in vector.items()
-        if abs(value) > 1e-13
+        label: np.array([[float(value)]])
+        for label, value in exact_harmonic_pair_vector(degree).items()
     }
 
 
@@ -2156,9 +2405,12 @@ def export_sdpa_problem(
     # solver then correctly reports as infeasible.
     echelon: dict[tuple[int, int, int], dict[tuple[int, int, int], Fraction]]
     echelon = {}
+    echelon_objective: dict[tuple[int, int, int], Fraction] = {}
     selected: list[int] = []
+    inconsistent_dropped = 0
     for index in range(count):
         vector = dict(flattened[index])
+        residual_objective = objective[index]
         while vector:
             pivot_coordinate = min(
                 vector,
@@ -2174,9 +2426,16 @@ def export_sdpa_problem(
                     coordinate: value / pivot_value
                     for coordinate, value in vector.items()
                 }
+                echelon_objective[pivot_coordinate] = (
+                    residual_objective / pivot_value
+                )
                 selected.append(index)
                 break
             factor = vector[pivot_coordinate]
+            residual_objective = (
+                residual_objective
+                - factor * echelon_objective[pivot_coordinate]
+            )
             for coordinate, value in row.items():
                 updated = (
                     vector.get(coordinate, Fraction(0)) - factor * value
@@ -2185,6 +2444,23 @@ def export_sdpa_problem(
                     vector[coordinate] = updated
                 else:
                     vector.pop(coordinate, None)
+        else:
+            # Direction dropped: its image is a combination of kept
+            # images.  Sound only if its objective coefficient is the
+            # same combination of kept coefficients; otherwise the true
+            # dual is unbounded along it, and dropping would hide that.
+            if residual_objective:
+                inconsistent_dropped += 1
+    if inconsistent_dropped:
+        import sys as _sys
+
+        print(
+            f"WARNING: export dropped {inconsistent_dropped} "
+            "image-dependent direction(s) carrying a nonzero objective "
+            "residual: the true dual is unbounded along them and the "
+            "exported problem hides that.  Add covering blocks.",
+            file=_sys.stderr,
+        )
     selected.sort()
     dropped = count - len(selected)
 
@@ -2289,6 +2565,7 @@ def export_sdpa_problem(
         "map": str(map_path),
         "variables": variable_count,
         "dropped_dependent_directions": dropped,
+        "dropped_objective_inconsistent": inconsistent_dropped,
         "labels": len(ordered_labels),
         "equality_generators": generator_count,
         "equality_rank": equality_rank,
@@ -2307,26 +2584,57 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
     # E = iint K(x.y) dmu dmu = -4/3 + 20 p2 - 48 p4 + 32 p6, with no
     # isotropy substitution: p2 = E[(X.Y)^2] stays a genuine moment
     # variable.
-    target = {
-        ("constant",): -4.0 / 3.0 + args.target_epsilon,
-        ("pair", 2): 20.0,
-        ("pair", 4): -48.0,
-        ("pair", 6): 32.0,
+    energy_vector: dict[Label, Fraction] = {
+        ("constant",): Fraction(-4, 3),
+        ("pair", 2): Fraction(20),
+        ("pair", 4): Fraction(-48),
+        ("pair", 6): Fraction(32),
     }
+    exact_target = dict(energy_vector)
     if args.h2_weighted_target:
         # Rational-certificate target h2*E with h2 = (3 p2 - 1)/2 >= 0.
         # Anisotropic measures (h2 > 0) are dense and E is continuous, so
         # h2*E >= 0 for every measure implies E >= 0 for every measure.
         # Product labels linearize p2*pj as genuine 4-sample moments.
-        target = {
-            ("constant",): 2.0 / 3.0 + args.target_epsilon,
-            ("pair", 2): -12.0,
-            ("pair", 4): 24.0,
-            ("pair", 6): -16.0,
-            multiply_labels(("pair", 2), ("pair", 2)): 30.0,
-            multiply_labels(("pair", 2), ("pair", 4)): -72.0,
-            multiply_labels(("pair", 2), ("pair", 6)): 48.0,
+        h2_vector: dict[Label, Fraction] = {
+            ("constant",): Fraction(-1, 2),
+            ("pair", 2): Fraction(3, 2),
         }
+        exact_target = multiply_label_vectors(h2_vector, energy_vector)
+    e5_kappa = Fraction(0)
+    if getattr(args, "e5_weight", None):
+        e5_kappa = Fraction(args.e5_weight)
+        if e5_kappa < 0:
+            raise SystemExit("--e5-weight must be a nonnegative rational")
+    if e5_kappa:
+        if not args.h2_weighted_target:
+            raise SystemExit(
+                "--e5-weight composes the weight q = h2 + kappa*e5(I-A2) "
+                "and therefore requires --h2-weighted-target (the reduction "
+                "lemma is proved for q of this form; "
+                "docs/MULTI_WEIGHT_PROGRAM.md Fact 3)"
+            )
+        # Weighted target (h2 + kappa*e5(I-A2)) * E: the e5*E part is a
+        # disconnected product of the 5-sample gap labels with the pair
+        # labels of the energy.
+        for label, coefficient in multiply_label_vectors(
+            gap_elementary_vector(5), energy_vector
+        ).items():
+            updated = (
+                exact_target.get(label, Fraction(0))
+                + e5_kappa * coefficient
+            )
+            if updated:
+                exact_target[label] = updated
+            else:
+                exact_target.pop(label, None)
+    target = {
+        label: float(coefficient)
+        for label, coefficient in exact_target.items()
+    }
+    target[("constant",)] = (
+        target.get(("constant",), 0.0) + args.target_epsilon
+    )
     gradient, hessian, perpendicular_hessian = kernel_polynomials()
     (
         four_point_parallel_hessian,
@@ -3031,6 +3339,108 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                     },
                 )
             )
+            constraints.append(variable >> 0)
+
+    if getattr(args, "gap_cut_e5", False) or e5_kappa:
+        # e5(I - A2) = det(I - A2) >= 0: the first face-vanishing scalar
+        # shadow of the operator gap (docs/MULTI_WEIGHT_PROGRAM.md Facts
+        # 1-3).  Valid for every measure; vanishes identically on the
+        # whole pole-equator stratum; needs the 5-sample cycle labels.
+        variable = cp.Variable((1, 1), symmetric=True, name="gap_cut_e5")
+        blocks.append(
+            (
+                "gap_cut_e5",
+                variable,
+                {
+                    label: np.array([[float(coefficient)]])
+                    for label, coefficient in gap_elementary_vector(
+                        5
+                    ).items()
+                },
+            )
+        )
+        constraints.append(variable >> 0)
+
+    if getattr(args, "e5_localized_harmonics", False) or e5_kappa:
+        # Coverage module for the e5 label sector.  All families are
+        # valid for every measure:
+        #   * gap_cut_e5_upper: (4/5)^5 - e5 >= 0 by AM-GM on the five
+        #     nonnegative eigenvalues of B = I - A2 (tr B = 4
+        #     identically), so e5 = prod lambda <= (tr B / 5)^5.
+        #   * e5loc_hankel_*: e5 * E[v(t) v(t)^T] >= 0 with t = X.Y and
+        #     v = (1, t^2) resp. (t, t^3): a nonnegative scalar
+        #     invariant times a pair moment matrix (disconnected
+        #     samples factor).  Recession analysis: the upper cut
+        #     forces e5(ray) = 0, then the two Hankels force
+        #     e5*p2(ray) = e5*p4(ray) = 0, leaving only the
+        #     +32*kappa*e5*p6 objective direction (nonnegative), so the
+        #     kappa*e5*E part of the weighted target cannot open a
+        #     recession ray through the new sector.
+        #   * e5loc/e5comp_harmonic_d: e5 * E[P_d] >= 0 and
+        #     ((4/5)^5 - e5) * E[P_d] >= 0, products of nonnegative
+        #     invariants.
+        e5_expansion = gap_elementary_vector(5)
+        e5_upper_bound = Fraction(1024, 3125)  # (4/5)^5
+        e5_complement = {
+            label: -coefficient
+            for label, coefficient in e5_expansion.items()
+        }
+        e5_complement[("constant",)] = (
+            e5_complement.get(("constant",), Fraction(0)) + e5_upper_bound
+        )
+
+        def e5_scalar_block(name: str, vector: dict[Label, Fraction]):
+            variable = cp.Variable((1, 1), symmetric=True, name=name)
+            blocks.append(
+                (
+                    name,
+                    variable,
+                    {
+                        label: np.array([[float(coefficient)]])
+                        for label, coefficient in vector.items()
+                        if coefficient
+                    },
+                )
+            )
+            constraints.append(variable >> 0)
+
+        e5_scalar_block("gap_cut_e5_upper", e5_complement)
+        for harmonic_degree in (2, 4, 6):
+            legendre_vector = exact_harmonic_pair_vector(harmonic_degree)
+            e5_scalar_block(
+                f"e5loc_harmonic_{harmonic_degree}",
+                multiply_label_vectors(e5_expansion, legendre_vector),
+            )
+            e5_scalar_block(
+                f"e5comp_harmonic_{harmonic_degree}",
+                multiply_label_vectors(e5_complement, legendre_vector),
+            )
+
+        # Pair-Hankel localizations: entries e5 * p_{i+j} for the even
+        # basis (1, t^2) and the odd basis (t, t^3).
+        for name, powers in (
+            ("e5loc_hankel_even", (0, 2)),
+            ("e5loc_hankel_odd", (1, 3)),
+        ):
+            size = len(powers)
+            hankel_matrices: dict[Label, np.ndarray] = {}
+            for row in range(size):
+                for column in range(size):
+                    pair_power = powers[row] + powers[column]
+                    pair_vector = (
+                        {("constant",): Fraction(1)}
+                        if pair_power == 0
+                        else {("pair", pair_power): Fraction(1)}
+                    )
+                    for label, coefficient in multiply_label_vectors(
+                        e5_expansion, pair_vector
+                    ).items():
+                        matrix = hankel_matrices.setdefault(
+                            label, np.zeros((size, size))
+                        )
+                        matrix[row, column] += float(coefficient)
+            variable = cp.Variable((size, size), symmetric=True, name=name)
+            blocks.append((name, variable, hankel_matrices))
             constraints.append(variable >> 0)
 
     if args.global_gap:
@@ -4367,6 +4777,8 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         "potential_matrices": args.potential_matrices,
         "global_gap": args.global_gap,
         "global_tangent_gaps": args.global_tangent_gaps,
+        "e5_weight": str(e5_kappa) if e5_kappa else None,
+        "gap_cut_e5": bool(getattr(args, "gap_cut_e5", False) or e5_kappa),
         "labels": len(labels),
         "gradient_powers": [power for power, _ in gradient_relations],
         "potential_powers": [power for power, _ in potential_relations],
@@ -4529,6 +4941,34 @@ def parse_args() -> argparse.Namespace:
             "add the scalar cuts e_k(I - A2) >= 0, k = 2, 3, 4, as 1x1 "
             "blocks; each pairs strictly negatively with the projected "
             "g4 escape ray"
+        ),
+    )
+    parser.add_argument(
+        "--gap-cut-e5",
+        action="store_true",
+        help=(
+            "add the scalar cut e5(I - A2) = det(I - A2) >= 0 as a 1x1 "
+            "block: the first face-vanishing elementary symmetric "
+            "invariant of the operator gap (5-sample cycle labels; "
+            "docs/MULTI_WEIGHT_PROGRAM.md)"
+        ),
+    )
+    parser.add_argument(
+        "--e5-localized-harmonics",
+        action="store_true",
+        help=(
+            "add the 1x1 products e5(I - A2) * E[P_d(X.Y)] >= 0 for "
+            "d = 2, 4, 6 (label coverage for the e5-weighted target)"
+        ),
+    )
+    parser.add_argument(
+        "--e5-weight",
+        metavar="KAPPA",
+        help=(
+            "nonnegative rational kappa: replace the target h2*E by "
+            "(h2 + kappa*e5(I - A2))*E; requires --h2-weighted-target "
+            "and implies --gap-cut-e5 and --e5-localized-harmonics "
+            "(docs/MULTI_WEIGHT_PROGRAM.md, docs/E5_WEIGHT_NOTE.md)"
         ),
     )
     parser.add_argument("--box-bounds", action="store_true")

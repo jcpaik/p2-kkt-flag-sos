@@ -385,6 +385,193 @@ $\varepsilon\in\{10^{-1},3\times10^{-2},10^{-2}\}$ the blocks are
   decided by the GMP `sel_toep_*` solves.  Data:
   `sdpa_runs/toeplitz_ab_selector.json` (per-block traces included).
 
+## 7. GMP verdict on v1, and the v2 iteration
+
+**GMP verdict (orchestrator, same date): the Jensen/unfolding blocks
+are the first family to move the pole law.**
+
+| $\varepsilon$ | control $\operatorname{tr}$ | v1 $\operatorname{tr}$ | change |
+|---:|---:|---:|---:|
+| $10^{-3}$ | 764.99 | **733.47** | $-4.1\%$ |
+| $10^{-4}$ | 8133.57 | **7034.96** | $-13.5\%$ |
+
+Per-decade growth $10.63\times\to9.59\times$, and the bite *grows*
+toward the sharp limit — qualitatively unlike every previously
+measured valid family (gap cuts, theta windows/caps: exactly inert).
+The unfolding mechanism is validated as the right kind of object.
+
+**v2 design (this section documents `deg14_h2w_h2all_toep2.dat-s`).**
+Additions were selected by the same T2 pipeline (matrix kill signs,
+label coverage, and the share of matrix mass on $p_2\times$graph$_4$
+— the 58% sector), from three sources:
+
+1. *Follow-ups built but not shipped in v1*: `h2comp_cov_even_*_d6`
+   ($(1-h_2)(T-G)$; zero missing labels at cap 6, neg sums to
+   $-4.4\times10^4$, 33–37% p2g4 mass) and the odd-sector Jensen
+   blocks, which trim *exactly* to the cap-5 bases (14×14, zero
+   missing, neg sums $-1.4\times10^4$ plain / $-6.5\times10^4$ h2loc,
+   61% p2g4 mass before trim).
+2. *Minor-sector copies*: `jensen_*_minor_d6`,
+   `h2loc_jensen_*_minor_d6` (the h2loc minors load 52–57% on
+   p2g4 and target `h2loc_two_root_even_11_minor`, the top trace
+   carrier of the A/B optima), and the seesaw couplings for the minor
+   and odd-minor towers `h2comp_gram_*_minor_d6` (zero missing, neg
+   sums $-3.6$ to $-7.8\times10^4$ — the odd-minor ones are the
+   strongest v2 rows).
+3. *A new root-weight axis* suggested by the collision-boundary
+   signature ($s=\pm1$, $T_n(\pm1)=(\pm1)^n$) of the escape: the
+   $s^2$-localized Jensen families
+   $s^2\cdot\mathrm{Cov}\succeq0$ (`jensen_*_s2_d6`, h2loc copies;
+   valid since $s^2\ge0$ pointwise; h2loc copies load 55–57% on
+   p2g4).  Note the weight algebra: $s^2 = 1-(1-s^2)$ makes
+   $A_{s^2}=A_{\text{plain}}-A_{\text{minor}}$ on a common basis, so
+   $s^2$-blocks relate to plain+minor exactly as the $h_2$-complement
+   relates to plain+h2loc — a *difference of PSD constraints*, not
+   implied by them.  (Pure $p_2$- or $(1-p_2)$-weights are conic
+   combinations of $\{1,h_2\}$-weights and add nothing; $h_2^2$
+   would need $p_2^2\times$ labels outside the vocabulary —
+   both rejected on principle, not measured.)
+
+v2 = v1's 11 families + 18 additions (29 blocks), same first-class
+exporter route, same exact verification per family (rational equality
+vs direct covariance + exact PSD at ONB and cross), selectors at
+$\varepsilon=10^{-3},10^{-4},\tfrac{16}3\times10^{-5}$
+(`sel_toep2_1em3/1em4/5em5.dat-s`; the 5em5 bound `-6.6672E-1` is
+exact).  A degree-16 stack (`deg16_h2w_h2all_toep.dat-s`, v1 families
+at caps 8/7 on the m=1243 base, selectors `sel16_toep_1em4/1em5` at
+the measured deg-16 wall $-1.31\times10^{-6}$) rides the same
+machinery.
+
+**v2 export outcome**: all 29 families verified in-run (minors trim
+24→18 / 20→15, s² the same, odd cap-5 exact); m = **794**, unchanged
+from v1 — the 18 additions revive no further dropped directions, so
+the GMP cost of v2 equals v1.  103 blocks, 1,452,504 entries, 97 MB.
+Selectors `sel_toep2_1em3/1em4/5em5.dat-s` (m=795, 104 blocks) and
+the fingerprint dump `blocks_deg14_h2w_h2all_toep2.json` staged.
+
+**v2 double-precision A/B** (MOSEK, all six solves `optimal`;
+`sdpa_runs/toeplitz_ab_selector_v2.json`):
+
+| $\varepsilon$ | control | v1 | **v2** |
+|---:|---:|---:|---:|
+| $10^{-1}$ | 5.6038 | 5.4920 ($-2.0\%$) | **5.4408** ($-2.9\%$) |
+| $3\times10^{-2}$ | 7.8830 | 7.7691 ($-1.4\%$) | **7.7393** ($-1.8\%$) |
+| $10^{-2}$ | 12.6538 | 12.4915 ($-1.3\%$) | **12.2363** ($-3.3\%$) |
+
+v2 strictly improves on v1 at every point and — unlike v1, whose
+relative bite *shrank* toward small $\varepsilon$ — **v2's bite grows
+toward the pole** ($-2.9\%\to-3.3\%$).  The new families are active
+at the optimum (`h2comp_gram_even_00_minor_d6` carries trace 0.13 in
+the $\varepsilon=10^{-2}$ certificate, top-10 block).  Sanity
+criterion for the GMP queue: passed.
+
+## 8. v3: fiber-Toeplitz blocks against the rotated residual
+
+**GMP verdict on v2 (orchestrator): breakthrough.**  Traces
+437.51 / 1544.18 / 1909.11 at $\varepsilon=10^{-3}/10^{-4}/
+5.33\times10^{-5}$ (controls 764.99 / 8133.57 / 13637.2): per-decade
+growth $10.63\times\to3.53\times$, exponent
+$\varepsilon^{-1.03}\to\varepsilon^{-0.55}$, and
+$\approx\varepsilon^{-0.34}$ on the sub-decade below $10^{-4}$.
+
+**The residual rotated** (`fingerprint_D_toep2.json`,
+$\|D\|_1=1.33\times10^4$, down from $5.0\times10^4$):
+$p_2\times$graph$_4$ + graph$_4$ collapsed $77\%\to3.8\%$; the
+residual is $49.7\%$ $p_2\times$triangle, $17.1\%$ triangle,
+$\approx28\%$ $p_2\times$pair-products.  Top labels
+$p_2\times$triangle$(1,3,5)$, $(0,4,6)$, $(1,5,5)$, $(1,3,3)$,
+$p_2\times(p_4p_6)$, $(p_4p_4)$; carriers `h2loc_two_root_even_00`,
+`h2loc_flag_2/3`.  The certificate now pumps the **same-leaf ($T$)
+side** that the Jensen blocks tie to $G$.
+
+**The v3 object: fiber-Toeplitz moment matrices.**  What bounds the
+$T$-side is not a square but positivity of the leaf's azimuthal
+distribution about the pair frame.  With
+$V_{(j,a)}=|w|^K e^{2ij\varphi}g_a(t_1,t_2,s)$, $j=0..K$, the matrix
+$\mathbb E_y[VV^H]$ (conditional on the roots, then averaged) is
+Hermitian PSD, and its real part has *polynomial* entries
+$$M_{(j,a),(k,b)}=\mathbb E\big[(|w|^2)^{K-|j-k|}\,
+\operatorname{Re}(w^{2(j-k)})\,g_ag_b\big]$$
+— the radially-weighted trigonometric moment matrix of the fiber
+measure $(\sin\delta\sin\theta)^{2K}d\mu_y$ pushed to the circle:
+the flag incarnation of the $7\times7$ fiber PSD of
+[Cylindrical domination](CYLINDRICAL_DOMINATION.md) §6's
+honest-frontier paragraph.  Entries are triangle labels; h2loc copies
+give $p_2\times$triangle — exactly the residual's home.  Only the
+$\operatorname{Re}$ (cosine) part is used: the imaginary parts carry
+single $\det$ factors, whose 3-point moments are outside the label
+algebra.  ($\operatorname{Re}$ of a Hermitian PSD matrix is PSD.)
+
+**Why no Gram family spans it (v3's T1).**  The diagonals of $M$
+carry the *constant* radial weight $|w|^{2K}$ along every band, while
+a polynomial Gram $\mathbb E[v_j\bar v_k]$ with $v_j=w^{2j}q_j$ forces
+band weights $|w|^{4\min(j,k)}q_jq_k$ — matching them requires
+$q_j=|w|^{K-2j}$, non-polynomial for $j>K/2$ (equivalently: the
+Fejér–Riesz factors of the truncated Toeplitz cone are the
+non-polynomial $|w|^Ke^{2ij\varphi}$).  For $K\le1$ the content
+reduces to polynomial squares; for $K\ge2$ it is genuinely beyond the
+within-degree square cone — and the current problem carries *no*
+same-leaf constraints at all beyond the $T-G$ ties, so the FT blocks
+add triangle-sector PSD structure nothing else provides.  Positivity
+is by fiber-measure nonnegativity (moment-problem side), not by
+squaring: machine-checked valid at random atomic measures and exactly
+(rational equality of the label expansion against direct pointwise
+evaluation + exact PSD) at the ONB and cross measures.
+
+**Pair-sector companions** for the $28\%$ pair-product residual:
+the localized Hankel $[p_{a+b}-p_{a+b+2}]\succeq0$ (moment matrix of
+$(1-t^2)d\nu$; not implied by the $g_\ell\ge0$ rows or Grams) and the
+weighted pair-Jensen $\mathrm{Cov}((1-t^2)t^a)\succeq0$ whose $G$
+side is the *pair-product* matrix $[(p_a-p_{a+2})(p_b-p_{b+2})]$ —
+h2loc copies land on $p_2\times$pair and $p_2\times$pair$\times$pair.
+
+**v3 T2 gate** (eigen tables vs $D_{\text{toep2}}$,
+$\|D\|_1=1.33\times10^4$): the FT families dwarf everything measured
+so far —
+
+| family (size) | min eig | neg sum | missing labels |
+|---|---:|---:|---:|
+| ftoep3_even_00_r0 (4) | $-6.3\times10^4$ | $-1.0\times10^5$ | 0 |
+| ftoep2_even_00_r3 (15) | $-9.8\times10^4$ | $-1.6\times10^5$ | 1 |
+| ftoep2_even_11_r3 (15) | $-8.3\times10^4$ | $-1.9\times10^5$ | 2 |
+| **h2loc_ftoep3_even_00_r0 (4)** | $-4.5\times10^5$ | $-4.5\times10^5$ | 0 |
+| **h2loc_ftoep2_even_00_r3 (15)** | $-5.3\times10^5$ | $-7.4\times10^5$ | 2 |
+| **h2loc_ftoep2_even_11_r3 (15)** | $-3.7\times10^5$ | $-9.8\times10^5$ | 4 |
+| pair_hankel_loc_d6 / h2loc (4) | $-3.9$ / $-5.1\times10^2$ | | 0 |
+| pair_jensen_minor_d4 / h2loc (3) | $-87$ / $-7.8\times10^3$ | | 0 |
+
+(neg sums up to $74\times$ the residual's total mass, vs $1$–$10\times$
+for the v1/v2 candidates against their targets).
+
+**v3 export outcome**: `deg14_h2w_h2all_toep3.dat-s` = v2's 29
+families + the 10 above (39 appended blocks, 113 total); all 39
+verified in-run (FT radial families trim 15→12); m = **794**,
+*still* unchanged from v1/v2 — same GMP cost per iteration; 1,471,234
+entries, 98 MB.  Selectors `sel_toep3_1em3/1em4/5em5/2em5.dat-s`
+(m=795, 114 blocks; the 2em5 bound
+`-6.666866666666666666666666666666666666667E-1` exact) and the
+fingerprint dump `blocks_deg14_h2w_h2all_toep3.json` staged.  The
+degree-16 stack survived the session restart complete
+(`deg16_h2w_h2all_toep.dat-s`, m=1245, 93 blocks, 3.4M entries) and
+its selectors `sel16_toep_1em4/1em5.dat-s` (m=1246) are staged.
+
+**v3 double-precision A/B** (MOSEK, all six solves `optimal`;
+`sdpa_runs/toeplitz_ab_selector_v3.json`):
+
+| $\varepsilon$ | control | v1 | v2 | **v3** |
+|---:|---:|---:|---:|---:|
+| $10^{-1}$ | 5.6038 | $-2.0\%$ | $-2.9\%$ | **5.1176** ($-8.7\%$) |
+| $3\times10^{-2}$ | 7.8830 | $-1.4\%$ | $-1.8\%$ | **7.4630** ($-5.3\%$) |
+| $10^{-2}$ | 12.6538 | $-1.3\%$ | $-3.3\%$ | **11.6718** ($-7.8\%$) |
+
+The v3 bite is $2$–$3\times$ the v2 bite at every point, and the
+fiber-Toeplitz blocks carry it directly: `ftoep2_even_11_r3` is a
+top-6 certificate block at both ends ($\operatorname{tr}$ 0.31 at
+$\varepsilon=10^{-1}$, 0.20 at $10^{-2}$), with
+`h2loc_ftoep2_even_11_r3` (0.12), `jensen_even_11`, and
+`h2comp_gram_even_00` also active.  Sanity criterion for the GMP
+queue: passed, with margin.
+
 ## Files
 
 | file | content |
@@ -394,5 +581,9 @@ $\varepsilon\in\{10^{-1},3\times10^{-2},10^{-2}\}$ the blocks are
 | `toeplitz_ab.py` | label-space double-precision selector A/B |
 | `toeplitz_dump_blocks.py` | augmented 85-block dump writer for the fingerprint tools |
 | `sdpa_runs/toeplitz_T2_e3e4.json`, `toeplitz_T2_e4e5.json` | T2 eigenvalue tables and generator rows |
-| `sdpa_runs/deg14_h2w_h2all_toep.dat-s` (+sidecars), `sel_toep_1em3/1em4.dat-s` | T3 GMP-ready artifacts |
-| `sdpa_runs/toeplitz_families_exact.json` | exact rational label matrices of the 11 exported families (3703 label matrices; reproducibility) |
+| `sdpa_runs/deg14_h2w_h2all_toep.dat-s` (+sidecars), `sel_toep_1em3/1em4.dat-s` | v1 GMP artifacts (measured: pole $10.63\times\to9.59\times$) |
+| `sdpa_runs/deg14_h2w_h2all_toep2.dat-s` (+`.map.json`, `.families.json`, `.export.log`), `sel_toep2_1em3/1em4/5em5.dat-s`, `blocks_deg14_h2w_h2all_toep2.json` | v2 GMP artifacts (29 families, m=794) |
+| `sdpa_runs/deg14_h2w_h2all_toep3.dat-s` (+sidecars), `sel_toep3_1em3/1em4/5em5/2em5.dat-s`, `blocks_deg14_h2w_h2all_toep3.json` | v3 GMP artifacts (39 families, m=794) |
+| `sdpa_runs/deg16_h2w_h2all_toep.dat-s` (+sidecars), `sel16_toep_1em4/1em5.dat-s` | degree-16 stack (v1 families at caps 8/7, m=1245) |
+| `sdpa_runs/toeplitz_ab_selector.json`, `toeplitz_ab_selector_v2.json`, `toeplitz_ab_selector_v3.json` | double-precision A/B data (v1, v2, v3) |
+| `sdpa_runs/toeplitz_families_exact.json` | exact rational label matrices of the 11 v1 families (3703 label matrices; reproducibility) |
