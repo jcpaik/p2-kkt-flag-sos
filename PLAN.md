@@ -26,6 +26,7 @@ Where things stand (details and provenance in §3–§6 below):
 | degree-18, sharp-face projected | **reachable**: `deg18_h2w_h2all_am_we1.dat-s`, m = 1015 (< unprojected deg-16's 1243); deg16 le1 m = 1173 | sdpa_runs/, docs/WEIGHTED_E1_NOTE.md |
 | weighted deg-16 at 128-bit | spurious pdINF after 37 min — **use 200-bit** for weighted bound solves at degree ≥ 16 | sdpa_runs/REGEN_NOTES.md |
 | **weighted degree-16 bound (2026-08-17, 200-bit, 71 min)** | $\mathbf{-1.3140\times10^{-6}}$ — $21\times$ better than weighted deg-14, $57\times$ better than *unweighted deg-18*; the super-geometric weighted decay is confirmed; deg-16 wall now $\approx1.3\times10^{-6}$ | `deg16_h2w_h2all_200.result` |
+| **Jensen/unfolding blocks vs the pole (2026-08-17)** | **first family ever to move the law**: selector traces $733.47/7034.96$ vs controls $764.99/8133.57$ ($-4.1\%/-13.5\%$); growth $10.63\times\to\mathbf{9.59\times}$ per decade, bite growing toward the sharp limit | docs/TOEPLITZ_BLOCKS_NOTE.md, `sel_toep_*` |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
