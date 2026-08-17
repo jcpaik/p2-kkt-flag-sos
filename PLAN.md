@@ -12,24 +12,34 @@ Where things stand (details and provenance in §3–§6 below):
 | fact | value | where |
 |---|---|---|
 | best unweighted bound, degree 14 / 18 | $-4.4856\times10^{-3}$ / $-7.5595\times10^{-5}$ | RESULTS.md |
-| weighted target $h_2E$ + full localized module, degree 14 | $\mathbf{-2.7909\times10^{-5}}$ ($161\times$ gain) | §5 Stage 2 |
+| weighted target $h_2E$ + full localized module, degree 14 | $\mathbf{-2.7909\times10^{-5}}$ ($161\times$ gain; re-verified 2026-08-17 post-regeneration, $-2.7908758\times10^{-5}$) | §5 Stage 2 |
 | adding the $e_k(I-A_2)$ cuts to that bound | identical to 12 digits (cuts slack at optimum) | §4 |
-| $\varepsilon$-trace law (attainment test), weighted, deg 14 | $330\to5529$ per decade — **pole survives**, no attainment yet | §5 Stage 3 |
-| projected-dual escape ray | pure $g_4$; **killed** by the scalar cuts (`--find-ray` infeasible A/B) | §4, docs/GAP_CUTS_NOTE.md |
-| where the surviving escape lives | the *unprojected* cone; identity unknown — **this is the frontier** | §4 |
+| $\varepsilon$-trace law, weighted, deg 14 (new scale, 2026-08-17) | $765\to8134\to13637$ at $\varepsilon=10^{-3},10^{-4},5.3\times10^{-5}$ — $10.6\times$/decade, simple pole ($\varepsilon^{-1.03}$) | docs/UNPROJECTED_ESCAPE_NOTE.md |
+| projected-dual escape ray | pure $g_4$; **killed** by the scalar cuts (`--find-ray` infeasible A/B; re-verified 2026-08-17) | §4, docs/GAP_CUTS_NOTE.md |
+| **the surviving escape, fingerprinted (2026-08-17)** | the $h_2$-**localized theta tower**: $78\%$ $p_2\times$(graph_4/triangle/pair-products), $22\%$ connected graph_4/triangle, $0\%$ pair sector — every scalar $p_k$-invariant is blind to it | docs/UNPROJECTED_ESCAPE_NOTE.md |
+| second weight candidate | $e_5(I-A_2)=\det(I-A_2)$: valid, dense-positive, vanishes on the **whole pole–equator stratum**; needs `graph_5` labels | docs/MULTI_WEIGHT_PROGRAM.md |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
+| conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
 
 **Normalization note (2026-08-17).**  The solver target was changed
 from the legacy $(3/16)E$ to $E$ itself
 ($E=-\tfrac43+20p_2-48p_4+32p_6$; weighted target
 $h_2E=\tfrac23-12p_2+24p_4-16p_6+30p_2p_2-72p_2p_4+48p_2p_6$).  Bounds
-in this file are converted (legacy $\times16/3$).  Artifacts in
-`sdpa_runs/` exported before this date — problem files, results,
-selector traces ($330$, $5529$, …), ray data and their pairings —
-remain in the legacy scale; per-decade growth ratios and pairing signs
-are scale-free.  New exports carry shifts $-4/3$ ($E$) and $2/3$
-($h_2E$).
+in this file are converted (legacy $\times16/3$).  New exports carry
+shifts $-4/3$ ($E$) and $2/3$ ($h_2E$).
+
+**Regeneration note (2026-08-17, later the same day).**  The gitignored
+`sdpa_runs/` and `.venv` were found wiped and were fully regenerated
+from code in the new normalization (params from the
+`~/opt/sdpa-gmp/param.sdpa` template; venv from requirements.txt; all
+exports re-made; 22/22 tests pass).  The degree-14 weighted anchor
+re-solved to $-2.7908758\times10^{-5}$, matching the pre-wipe record to
+8 digits, so regenerated data is trustworthy.  All legacy-scale
+artifacts (selector traces $330/5529$, legacy ray files) are gone;
+the regenerated trace law and fingerprints (new scale) supersede them.
+Keep small critical artifacts committed (docs notes, and
+`sdpa_runs/REGEN_NOTES.md` describes the reproduction commands).
 
 Standing conclusions a newcomer should not re-derive: no finite-degree
 certificate for bare $E$ exists (non-attainment, $1.07/\varepsilon$ (legacy scale)
@@ -42,35 +52,35 @@ docs/GAP_CUTS_NOTE.md.
 
 ## Next actions (work queue, in order)
 
-1. **Fingerprint the unprojected escape** (decisive diagnostic, cheap,
-   CPU-light).  Parse the certificate blocks (`yMat`) of the finished
-   selector solves in `sdpa_runs/` — `sel_h2all_1em4.result`
-   (converged, trace 330) against the $10^{-5}$ data
-   (`sel_cuts_1em5.result`, pFEAS bracket; and `sel_h2all_1em5` if its
-   result file exists) — via `sdpa_extract.py`.  Compare per-block
-   Frobenius norms across $\varepsilon$: the blocks carrying the
-   $\sim16\times$ growth *are* the escape.  Expand that dominant
-   direction in labels (`--dump-blocks` fingerprint machinery) and
-   apply the sign rule (docs/GAP_CUTS_NOTE.md): positive pairing →
-   next weight; negative → next cut.  Record the verdict in §4.
-2. **Degree-16 weighted dual solve** (memory-gated, hours):
-   `cd sdpa_runs && ./sdpa_gmp -ds deg16_h2w_h2all.dat-s -o
-   deg16_h2w_h2all.result -p param_128bit.sdpa` — run alone, check
-   swap first (CLAUDE.md hardware rules).  Targets: weighted deg-14
-   $-2.7909\times10^{-5}$, unweighted deg-16 $-7.672\times10^{-4}$.
-   Then a degree-16 selector at $10^{-5}/10^{-6}$ for a wall-free pole
-   exponent (§5 Stage 3 caveat: the deg-14 $10^{-5}$ point is
-   edge-dominated by the $-2.79\times10^{-5}$ wall).
-3. **All-measures (proof-carrying) versions** of whatever items 1–2
-   favor: drop `--gradient --potential --hessian
-   --global-tangent-gaps` (§5 composition caveat), re-export, re-solve;
-   or implement the $W$-KKT re-encoding (§5, route (ii)).
-4. **Structural routes, in parallel when blocked on hardware**:
-   (a) weighted-(E1): re-derive admissible leaves for the $h_2E$ zero
-   set at arity 2 and project the localized module (§6 open item);
-   (b) theta-atom exact feasibility over the projected cone + cuts
-   (§6 open item; generator bounds already proved in
-   docs/WRAPPER_LEMMAS.md).
+*(2026-08-17: items 1–2 of the previous queue are done — the artifact
+store was wiped and regenerated first; see the dashboard and
+docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
+
+1. **Kill the fingerprinted escape** (in progress, two independent
+   prongs): (a) $h_2$-**localized theta-atom windows** — the diagonal
+   window cuts of docs/THETA_ATOM_NOTE.md applied to the
+   `h2loc_two_root` modulated family, paired first against the stored
+   escape direction `sdpa_runs/fingerprint_D_e3e4.json` (sign rule:
+   positive window mass ⇒ the cut kills the ray); (b) **arity-2
+   weighted-(E1) projection** of the localized module (§6 open item).
+   Success test for either: the escape direction becomes infeasible /
+   the re-solved selector trace law flattens.
+2. **Degree-16 weighted dual solve** (running 2026-08-17,
+   `deg16_h2w_h2all.dat-s`, m = 1243, 128-bit).  Targets: weighted
+   deg-14 $-2.7909\times10^{-5}$, unweighted deg-16
+   $-7.672\times10^{-4}$.  Then a degree-16 selector pair for the
+   wall-free pole exponent and the wall-free fingerprint
+   confirmation.
+3. **All-measures (proof-carrying) confirmations**: the am-cone
+   selector grid is exported (`sel_am_1em3/1em4/5em5.dat-s`); solve
+   after item 2 releases the GMP slot, fingerprint, and check the
+   escape is the same tower (expected).  Or implement the $W$-KKT
+   re-encoding (docs/MULTI_WEIGHT_PROGRAM.md §5) to make the strong
+   cone proof-carrying.
+4. **Multi-weight program**: if item 1 leaves a residual escape, decide
+   the `graph_5` label extension for the $e_5(I-A_2)$ weight /
+   depth-$\le4$ $A_2$-word blocks (docs/MULTI_WEIGHT_PROGRAM.md §4);
+   the multiplier search over any dictionary is convex (ibid. §1).
 5. **Exactification, the moment any trace law plateaus**: max-margin
    interior point (§3 fixes list) → rational rounding → independent
    verification (`verify_certificate.py`).  With the reduction lemma
@@ -438,3 +448,28 @@ finite-degree pattern *is* the solution.
       leaves for $h_2E$ and project the winning `--h2-localized-all` module.
 - [ ] (E3)/(E4) analogues for the multiplier layers ($\rho$ supported on
       $\{U=E\}$, $B$ against the support Hessian).
+
+## 7. Literature position (swept 2026-08-17)
+
+Full annotated sweep in the session record; verdict: **the conjecture
+is open** and this exact kernel appears in no indexed work; the parent
+problem (Bilyk–Matzke–Nathe arXiv:2409.16508 §8, geodesic projective
+energies) is likewise unresolved, with the same pole–equator family
+appearing there empirically.  Methodological anchors worth citing in
+any write-up:
+
+* Reznick (1995) / Scheiderer — positive multipliers repairing SOS
+  non-attainment: the classical frame for the $h_2$-weighted route
+  (docs/EXACT_ZERO_PROGRAM.md §1–2 describes exactly this mechanism).
+* Klep–Magron–Volčič, *SOS certificates for polynomial moment
+  inequalities* (arXiv:2306.05761, FoCM 2025) — certificates for
+  polynomial expressions in measure moments; structurally our setting
+  ($E$ polynomial in $p_2,p_4,p_6$), including the
+  perturbation-vs-attainment dichotomy we measure.
+* Dostert–de Laat–Moustrou (arXiv:2001.00256) and follow-up
+  (arXiv:2403.16874) — the exact-rational-rounding pipeline for SDP
+  bounds (our `verify_certificate.py` discipline is the same
+  paradigm).
+* de Laat (arXiv:1610.04905) — moment hierarchies for continuous
+  energy on $S^2$: numerically sharp, never exact — consistent with
+  the non-attainment this program works around.
