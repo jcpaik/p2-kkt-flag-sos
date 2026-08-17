@@ -24,7 +24,8 @@ Where things stand (details and provenance in §3–§6 below):
 | weighted-(E1) arity 2 (2026-08-17) | classified (69/69): admissible leaves = root-equivariant traceless contractions; $\hat C_n$ tower survives, $\hat S_n$ dies; third-order law forces unweighted-(E1) bases on the $h_2$loc layer | docs/WEIGHTED_E1_NOTE.md |
 | **split verdict on the pole (2026-08-17)** | the selector growth direction is $80.6\to95.7\%$ **inside** the sharp-face admissible span as $\varepsilon\downarrow$: the pole is non-attainment *inside* the sharp cone — projections cannot block it, only cuts on the admissible tower | docs/WEIGHTED_E1_NOTE.md |
 | degree-18, sharp-face projected | **reachable**: `deg18_h2w_h2all_am_we1.dat-s`, m = 1015 (< unprojected deg-16's 1243); deg16 le1 m = 1173 | sdpa_runs/, docs/WEIGHTED_E1_NOTE.md |
-| weighted deg-16 at 128-bit | spurious pdINF after 37 min — **use 200-bit** for weighted bound solves at degree ≥ 16 (200-bit retry running) | sdpa_runs/REGEN_NOTES.md |
+| weighted deg-16 at 128-bit | spurious pdINF after 37 min — **use 200-bit** for weighted bound solves at degree ≥ 16 | sdpa_runs/REGEN_NOTES.md |
+| **weighted degree-16 bound (2026-08-17, 200-bit, 71 min)** | $\mathbf{-1.3140\times10^{-6}}$ — $21\times$ better than weighted deg-14, $57\times$ better than *unweighted deg-18*; the super-geometric weighted decay is confirmed; deg-16 wall now $\approx1.3\times10^{-6}$ | `deg16_h2w_h2all_200.result` |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
