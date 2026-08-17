@@ -21,6 +21,10 @@ Where things stand (details and provenance in §3–§6 below):
 | theta-atom adjunction (measured 2026-08-17) | localized atoms re-bound the projected dual (`infeasible` A/B — first (E1)-derived mechanism); but **inert on the finite-$\varepsilon$ pole**: theta-augmented selector traces $765.0/8133.57$ = controls to 6 digits | docs/THETA_ATOM_NOTE.md |
 | **two new exactly-solved sub-cases (2026-08-17)** | axisymmetric measures (rational Handelman-8 certificate, 6/6); antipodal circle-pairs, any latitude (Toeplitz coupling, 27/27, sharp at ONB) | §1, docs/CYLINDRICAL_DOMINATION.md |
 | scalar mode-domination | **falsified exactly** (min $-128159/27456$; cross shadow $-1/192$): the missing constraint is measure-valued Toeplitz joint positivity | docs/CYLINDRICAL_DOMINATION.md |
+| weighted-(E1) arity 2 (2026-08-17) | classified (69/69): admissible leaves = root-equivariant traceless contractions; $\hat C_n$ tower survives, $\hat S_n$ dies; third-order law forces unweighted-(E1) bases on the $h_2$loc layer | docs/WEIGHTED_E1_NOTE.md |
+| **split verdict on the pole (2026-08-17)** | the selector growth direction is $80.6\to95.7\%$ **inside** the sharp-face admissible span as $\varepsilon\downarrow$: the pole is non-attainment *inside* the sharp cone — projections cannot block it, only cuts on the admissible tower | docs/WEIGHTED_E1_NOTE.md |
+| degree-18, sharp-face projected | **reachable**: `deg18_h2w_h2all_am_we1.dat-s`, m = 1015 (< unprojected deg-16's 1243); deg16 le1 m = 1173 | sdpa_runs/, docs/WEIGHTED_E1_NOTE.md |
+| weighted deg-16 at 128-bit | spurious pdINF after 37 min — **use 200-bit** for weighted bound solves at degree ≥ 16 (200-bit retry running) | sdpa_runs/REGEN_NOTES.md |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
@@ -66,8 +70,13 @@ docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
    $\varepsilon=10^{-3}/10^{-4}$; the 136 window/cap cuts block the
    fingerprinted direction but certificate mass routes around them
    (docs/THETA_ATOM_NOTE.md verdict: recession repair only).
-   (b) **arity-2 weighted-(E1) projection** of the localized module —
-   in progress (reduced deg-16/18 exports being produced).
+   (b) ~~arity-2 weighted-(E1) projection~~ — **classified and
+   measured** (docs/WEIGHTED_E1_NOTE.md): the projection is
+   structurally *unable* to block the escape (it removes certificate
+   generators; the growth direction lives inside the admissible span
+   — the split verdict above).  Its value is the reduced GMP sizes
+   (deg-18 reachable) and the sharpness-compatibility certificates
+   for tower cuts.
    (c) **NEW, from the circle-pair theorem: measure-valued Toeplitz
    blocks.**  The exact mechanism that closed the circle-pair case is
    the joint positivity of azimuthal-mode Toeplitz matrices
@@ -77,12 +86,18 @@ docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
    inert scalar windows, loading exactly on the escape's
    $p_2\times$(high-modulation) labels.  Derive validity, implement,
    A/B against `fingerprint_D_e3e4.json`, re-run the trace law.
-2. **Degree-16 weighted dual solve** (running 2026-08-17,
-   `deg16_h2w_h2all.dat-s`, m = 1243, 128-bit).  Targets: weighted
-   deg-14 $-2.7909\times10^{-5}$, unweighted deg-16
-   $-7.672\times10^{-4}$.  Then a degree-16 selector pair for the
-   wall-free pole exponent and the wall-free fingerprint
-   confirmation.
+2. **Degree-16 ladder** (GMP queue, 200-bit for bounds after the
+   128-bit pdINF lesson): (i) `deg16_h2w_h2all` dual (running) —
+   wall position at degree 16; (ii) plain deg-16 selectors at
+   $\varepsilon=10^{-4},10^{-5}$ — wall-free pole exponent +
+   fingerprint cross-check; (iii) **deg-16 theta A/B selectors** at
+   the same $\varepsilon$ — the deg-14 inertness of the tower cuts
+   could be a wall artifact; if the cuts bend the law at deg 16 in
+   the $10^{-5}$ regime, the theta windows are the pole repair after
+   all; (iv) `deg16_h2w_h2all_am_le1` dual (m = 1173) — the
+   sharp-face localized-projection bound; (v) the am-cone selector
+   law (`sel_am_*`).  Then deg-18 (`deg18_h2w_h2all_am_we1`,
+   m = 1015) once the cut-stacking design from item 1(c) exists.
 3. **All-measures (proof-carrying) confirmations**: the am-cone
    selector grid is exported (`sel_am_1em3/1em4/5em5.dat-s`); solve
    after item 2 releases the GMP slot, fingerprint, and check the
