@@ -182,3 +182,28 @@ saturated below 5e−5; the deg-16+v1 evidence (no re-steepening at
 1e−5) suggests the saturation face recedes with degree; the v3 ladder
 measures whether the law approaches a plateau (= attainment ⇒
 max-margin → rational rounding → verification).
+
+## 7. The degree-16 v3 ladder: the law goes nearly flat (2026-08-18)
+
+`deg16_h2w_h2all_toep3` (43 families, K=4 fiber-Toeplitz, m = 1245):
+
+| ε | 1e−4 | 1e−5 | 5e−6 |
+|---|---:|---:|---:|
+| tr | **959.52** | **1546.05** | **1805.27** |
+
+Per-decade ratio 1.61× (exponent **0.207**); sub-decade exponent 0.224
+— consistent, no re-steepening down to ≈3.8× the wall.  The
+compounding across the campaign (exponent at the deepest clean
+interval): control 1.03 → deg-16 plain 0.54 → +Jensen v1 0.34 →
+**+v2/v3 0.21**.  Each (degree × family-design) iteration roughly
+halves the residual singularity; the certificate trace stays below
+2000 approaching the wall.
+
+Interpretation: the certificate cone is closing behaviorally; the
+remaining gap to an *exact* certificate is the wall itself (every
+finite-degree bound is still < 0, decaying super-geometrically).  The
+two endgames: (A) a configuration whose wall lands exactly at 0 with a
+flat law (attained zero); (B) the multiplier target
+$(h_2+\kappa e_5)E$ with the e5-localized module (docs/E5_WEIGHT_NOTE,
+deg-16-scale build) so that zero is attained by construction.  The
+deg-16 v3 dual (running) measures how far the families move the wall.
