@@ -103,3 +103,31 @@ $p_2\times(\texttt{graph\_4},0,1,3,1,3,2)$ in both intervals).  The
 fingerprint is stable across $\varepsilon$, hence not a wall artifact.
 The degree-16 selector after the queued dual solve remains the fully
 wall-free confirmation.
+
+## 4. Rounds two and three: the Jensen blocks bend, then halve, the pole (2026-08-17, late)
+
+Selector traces on the weighted degree-14 problem (new scale):
+
+| ε | control | +Jensen v1 (11 families) | +v2 (29 families) |
+|---|---:|---:|---:|
+| 1e−3 | 764.99 | 733.47 | **437.51** |
+| 1e−4 | 8133.57 | 7034.96 | **1544.18** |
+| 5.33e−5 | 13637.2 | — | **1909.11** |
+| growth/decade | 10.63× | 9.59× | **3.53×** |
+| local exponent | 1.03 | 0.98 | **0.55** (→0.34 below 1e−4) |
+
+The conditional-covariance (Jensen/unfolding) families are the first
+objects to move this law at all; the v2 set halves the pole order in
+one design iteration and keeps flattening at smaller ε.
+
+**Residual escape (v2), fingerprinted** (`fingerprint_norms_toep2.json`,
+`fingerprint_D_toep2.json`): sectors rotated — p2×graph_4 + graph_4
+collapsed from 77% to 3.8%; the residual is 49.7% p2×triangle,
+29.3% p2×pair-products, 17.1% triangle (top labels
+p2×triangle(1,3,5), (0,4,6), (1,5,5); block carriers
+h2loc_two_root_even_00, h2loc_flag_2/3).  The certificate now pumps
+the same-leaf (T) side of the Jensen inequality; the matched v3
+object is the **conditional-Toeplitz moment-matrix positivity of the
+fiber** (PSD by Toeplitz positivity, not by squaring — the flag
+incarnation of the 7×7 fiber PSD of the cylindrical analysis), plus
+its p2-product/h2loc copies.  v3 in progress.
