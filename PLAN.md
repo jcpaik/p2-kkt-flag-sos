@@ -32,6 +32,9 @@ Where things stand (details and provenance in §3–§6 below):
 | **deg-16 + v3 stack (43 families, 2026-08-18)** | trace law $959.5/1546.0/1805.3$ at $10^{-4}/10^{-5}/5\times10^{-6}$ — **exponent 0.21, no re-steepening**; dual wall $\mathbf{-5.2504\times10^{-9}}$ ($250\times$ over plain deg-16; gap $1.8\times10^{-14}$) | docs/SUBCASES_AND_RECORD.md §7–8 |
 | bare $e_5$ cut at GMP | inert (bound and $10^{-4}$ trace = baseline); $e_5$'s route is the localized-module weight | docs/ENRICHMENTS.md, REGEN_NOTES |
 | all-measures (proof-carrying) selector law | $2366.8\to13873.3$ ($5.86\times$/decade) | sdpa_runs/sel_am_* |
+| **proof-carrying deg-16 + v3 (2026-08-18/19)** | wall $\mathbf{-1.2252\times10^{-8}}$ (2.3× the KKT copy — KKT toggles nearly redundant); ladder $1809/3056/3949$ (exp 0.23/0.37) | docs/UNPROJECTED_ESCAPE_NOTE.md §9 |
+| **FIRST EXACT RATIONAL CERTIFICATE (2026-08-19)** | $h_2E\ge-1.4824\times10^{-8}$ for every antipodal measure — exact, self-contained checker `verify_h2E_bound.py` (stdlib-only), PASS 104 s; the exactification pipeline is proven end-to-end | certificates/, docs/EXACT_CERTIFICATE_NOTE.md |
+| sharp-face (we1) route | **closed**: we1+v3 selector pUNBD at $10^{-5}$ (cannot certify at any trace) | REGEN_NOTES |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/SHARP_STRUCTURE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/FOUNDATIONS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
