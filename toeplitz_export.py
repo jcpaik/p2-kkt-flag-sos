@@ -68,16 +68,41 @@ from toeplitz_blocks import (
 
 Label = tuple
 
-def base_flags(degree: int) -> list[str]:
-    return [
+def base_flags(degree: int, cone: str = "kkt") -> list[str]:
+    """Base-problem flags per cone.
+
+    kkt     : the KKT-inclusive nine-toggle weighted problem
+              (deg14/16_h2w_h2all pattern);
+    am      : the proof-carrying all-measures cone (no KKT toggles);
+    am_we1  : all-measures + the weighted-(E1) two-layer projection
+              (deg18_h2w_h2all_am_we1 pattern; docs/WEIGHTED_E1_NOTE.md).
+    """
+    flags = [
         "--degree", str(degree), "--no-pointwise-sos",
         "--harmonics", "--three-point-flags", "--four-point-flags",
         "--two-root-flags",
-        "--gradient", "--potential", "--hessian",
-        "--global-tangent-gaps", "--rank-relations",
-        "--h2-weighted-target", "--h2-localized-all",
-        "--summary-only",
     ]
+    if cone == "kkt":
+        flags += [
+            "--gradient", "--potential", "--hessian",
+            "--global-tangent-gaps",
+        ]
+    flags += [
+        "--rank-relations",
+        "--h2-weighted-target", "--h2-localized-all",
+    ]
+    if cone == "am_we1":
+        # "both layers projected": pure layer by the weighted-(E1)
+        # bases, h2loc layer by the unweighted (E1) bases
+        # (docs/WEIGHTED_E1_NOTE.md sections 6 and 8).
+        flags += [
+            "--e1-project",
+            f"sdpa_runs/e1w_projection_deg{degree}.json",
+            "--e1-project-localized",
+            f"sdpa_runs/e1_projection_deg{degree}.json",
+        ]
+    flags += ["--summary-only"]
+    return flags
 
 
 # t0 = -eps - 2/3, 40 significant digits (REGEN_NOTES.md A4);
@@ -88,12 +113,18 @@ SELECTOR_BOUNDS = {
     "5em5": "-6.6672E-1",
     "2em5": "-6.666866666666666666666666666666666666667E-1",
     "1em5": "-6.666766666666666666666666666666666666667E-1",
+    "5em6": "-6.666716666666666666666666666666666666667E-1",
+    "1em6": "-6.666676666666666666666666666666666666667E-1",
+    "5em7": "-6.666671666666666666666666666666666666667E-1",
 }
 SELECTOR_SETS = {
-    ("deg14", "v1"): ["1em3", "1em4"],
-    ("deg14", "v2"): ["1em3", "1em4", "5em5"],
-    ("deg14", "v3"): ["1em3", "1em4", "5em5", "2em5"],
-    ("deg16", "v1"): ["1em4", "1em5"],
+    ("deg14", "v1", "kkt"): ["1em3", "1em4"],
+    ("deg14", "v2", "kkt"): ["1em3", "1em4", "5em5"],
+    ("deg14", "v3", "kkt"): ["1em3", "1em4", "5em5", "2em5"],
+    ("deg16", "v1", "kkt"): ["1em4", "1em5"],
+    ("deg16", "v3", "kkt"): ["1em4", "1em5", "5em6"],
+    ("deg16", "v3", "am"): ["1em4", "1em5", "5em6"],
+    ("deg18", "v3", "am_we1"): ["1em5", "1em6", "5em7"],
 }
 
 SCRATCH = Path(
@@ -496,22 +527,40 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
         # leaf's azimuthal fiber; docs/TOEPLITZ_BLOCKS_NOTE.md section 8)
         # and the pair-sector moment families, targeting the v2
         # residual (p2 x triangle 50%, triangle 17%, pair products 28%).
-        ft_order_deep = 3
-        ft_order_radial = 2
-        radial_cap = cap - 4
+        # Entry degree of FT(K, r) is 4K + 2r <= degree; at degree 16
+        # the K = 4 tower opens up.
+        if degree >= 18:
+            ft_specs = [
+                (4, 0, "even_00"),
+                (3, 3, "even_00"),
+                (3, 3, "even_11"),
+                (2, 5, "even_00"),
+                (2, 5, "even_11"),
+            ]
+        elif degree >= 16:
+            ft_specs = [
+                (4, 0, "even_00"),
+                (3, 2, "even_00"),
+                (3, 2, "even_11"),
+                (2, 4, "even_00"),
+                (2, 4, "even_11"),
+            ]
+        else:
+            ft_specs = [
+                (3, 0, "even_00"),
+                (2, cap - 4, "even_00"),
+                (2, cap - 4, "even_11"),
+            ]
         for h2loc in (False, True):
             families += [
                 build_fiber_toeplitz_family(
-                    ft_order_deep, 0, "even_00", h2loc=h2loc
-                ),
-                build_fiber_toeplitz_family(
-                    ft_order_radial, radial_cap, "even_00", h2loc=h2loc
-                ),
-                build_fiber_toeplitz_family(
-                    ft_order_radial, radial_cap, "even_11", h2loc=h2loc
-                ),
+                    order, radial_cap, sector, h2loc=h2loc
+                )
+                for order, radial_cap, sector in ft_specs
+            ]
+            families += [
                 build_pair_hankel_localized(cap - 1, h2loc=h2loc),
-                build_pair_weighted_jensen(cap - 3, h2loc=h2loc),
+                build_pair_weighted_jensen(cap - 2, h2loc=h2loc),
             ]
     return families
 
@@ -579,10 +628,29 @@ def family_float_matrices(family: dict) -> dict:
 # Interception driver
 # ---------------------------------------------------------------------------
 
-def run_export(out_path: str, degree: int, version: str) -> None:
+def run_export(
+    out_path: str,
+    degree: int,
+    version: str,
+    extra_flags: list[str] | None = None,
+    cone: str = "kkt",
+    reference_map: str | None = None,
+) -> None:
     original = sos_search.export_sdpa_problem
     report: dict = {}
-    save_path = capture_path(degree, version)
+    tag = version + ("" if cone == "kkt" else f"_{cone}") + (
+        "_" + "".join(f.strip("-") for f in extra_flags)
+        if extra_flags
+        else ""
+    )
+    save_path = capture_path(degree, tag)
+    reference_blocks = None
+    if reference_map:
+        with open(reference_map) as handle:
+            reference_blocks = [
+                (entry["name"], entry["size"])
+                for entry in json.load(handle)["blocks"]
+            ]
 
     def patched(
         path, digits, target, ordered_labels,
@@ -596,6 +664,26 @@ def run_export(out_path: str, degree: int, version: str) -> None:
             f"{len(ordered_labels)} labels",
             file=sys.stderr,
         )
+        if reference_blocks is not None:
+            built = [
+                (
+                    name,
+                    next(iter(matrices.values())).shape[0],
+                )
+                for name, matrices in psd_blocks
+            ]
+            if sorted(built) != sorted(reference_blocks):
+                raise SystemExit(
+                    "[toeplitz] base-block mismatch against "
+                    f"{reference_map}: rebuilt "
+                    f"{len(built)} blocks vs reference "
+                    f"{len(reference_blocks)} — wrong flags, aborting"
+                )
+            print(
+                "[toeplitz] base blocks match the reference map "
+                "(names and sizes)",
+                file=sys.stderr,
+            )
         for family in export_families(degree, version):
             before = family["size"]
             family, dropped = trim_to_labels(family, allowed)
@@ -657,7 +745,8 @@ def run_export(out_path: str, degree: int, version: str) -> None:
         argv_backup = sys.argv
         sys.argv = (
             ["sos_search.py", "--export-sdpa", out_path]
-            + base_flags(degree)
+            + base_flags(degree, cone)
+            + list(extra_flags or [])
         )
         try:
             result = sos_search.solve(sos_search.parse_args())
@@ -678,8 +767,10 @@ def run_export(out_path: str, degree: int, version: str) -> None:
                 ),
                 "version": version,
                 "degree": degree,
+                "cone": cone,
                 "families": report.get("families", []),
-                "base_flags": base_flags(degree),
+                "base_flags": base_flags(degree, cone)
+                + list(extra_flags or []),
             },
             indent=1,
         )
@@ -687,13 +778,19 @@ def run_export(out_path: str, degree: int, version: str) -> None:
     print(f"wrote {sidecar_path}")
 
 
-def run_selectors(out_path: str, degree: int, version: str) -> None:
-    prefix = "sel_toep" if degree == 14 else "sel16_toep"
+def run_selectors(
+    out_path: str, degree: int, version: str, cone: str = "kkt"
+) -> None:
+    prefix = "sel_toep" if degree == 14 else f"sel{degree}_toep"
+    if cone == "am":
+        prefix = prefix.replace("_toep", "_am_toep")
+    elif cone == "am_we1":
+        prefix = prefix.replace("_toep", "_we1_toep")
     if version == "v2":
         prefix = prefix.replace("toep", "toep2")
     elif version == "v3":
         prefix = prefix.replace("toep", "toep3")
-    for tag in SELECTOR_SETS[(f"deg{degree}", version)]:
+    for tag in SELECTOR_SETS[(f"deg{degree}", version, cone)]:
         bound = SELECTOR_BOUNDS[tag]
         selector_path = str(
             Path(out_path).with_name(f"{prefix}_{tag}.dat-s")
@@ -719,18 +816,43 @@ def main() -> None:
         "--version", choices=["v1", "v2", "v3"], default="v1"
     )
     parser.add_argument("--selectors", action="store_true")
+    parser.add_argument(
+        "--cone", choices=["kkt", "am", "am_we1"], default="kkt"
+    )
+    parser.add_argument(
+        "--reference-map",
+        help=(
+            "abort unless the rebuilt base blocks match this "
+            "existing export's .map.json (names and sizes)"
+        ),
+    )
+    parser.add_argument(
+        "--extra-flag",
+        action="append",
+        default=[],
+        help=(
+            "additional sos_search flags for the base problem "
+            "(e.g. --extra-flag=--gap-cut-e5 for the e5-cut variant)"
+        ),
+    )
     args = parser.parse_args()
     default_out = {
-        (14, "v1"): "sdpa_runs/deg14_h2w_h2all_toep.dat-s",
-        (14, "v2"): "sdpa_runs/deg14_h2w_h2all_toep2.dat-s",
-        (14, "v3"): "sdpa_runs/deg14_h2w_h2all_toep3.dat-s",
-        (16, "v1"): "sdpa_runs/deg16_h2w_h2all_toep.dat-s",
-    }[(args.degree, args.version)]
+        (14, "v1", "kkt"): "sdpa_runs/deg14_h2w_h2all_toep.dat-s",
+        (14, "v2", "kkt"): "sdpa_runs/deg14_h2w_h2all_toep2.dat-s",
+        (14, "v3", "kkt"): "sdpa_runs/deg14_h2w_h2all_toep3.dat-s",
+        (16, "v1", "kkt"): "sdpa_runs/deg16_h2w_h2all_toep.dat-s",
+        (16, "v3", "kkt"): "sdpa_runs/deg16_h2w_h2all_toep3.dat-s",
+        (16, "v3", "am"): "sdpa_runs/deg16_h2w_h2all_am_toep3.dat-s",
+        (18, "v3", "am_we1"): "sdpa_runs/deg18_we1_toep3.dat-s",
+    }[(args.degree, args.version, args.cone)]
     out_path = args.out or default_out
     if args.selectors:
-        run_selectors(out_path, args.degree, args.version)
+        run_selectors(out_path, args.degree, args.version, args.cone)
         return
-    run_export(out_path, args.degree, args.version)
+    run_export(
+        out_path, args.degree, args.version, args.extra_flag,
+        args.cone, args.reference_map,
+    )
 
 
 if __name__ == "__main__":

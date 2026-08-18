@@ -572,6 +572,83 @@ $\varepsilon=10^{-1}$, 0.20 at $10^{-2}$), with
 `h2comp_gram_even_00` also active.  Sanity criterion for the GMP
 queue: passed, with margin.
 
+## 9. Degree-16 stack: GMP verdict and the v3-deg16 export
+
+**GMP verdict on the deg-16 v1 stack (orchestrator, 2026-08-18):**
+`sel16_toep_1em4` = 3752.58 (plain deg-16 control 4073.66, $-7.9\%$),
+`sel16_toep_1em5` = **8151.85** (control 14068.66, $-42\%$).  The
+deg16+Jensen law is $2.17\times$/decade (exponent $0.34$) on
+$10^{-4}\!\to\!10^{-5}$ with **no deep re-steepening** — unlike
+degree 14, which re-steepened to exponent $1.17$ below
+$5\times10^{-5}$ as the escape saturated the covariance kernels.  The
+richer deg-16 cone + Jensen suppresses the saturation escape.
+
+**v3-deg16 export** (`deg16_h2w_h2all_toep3.dat-s`): the full v2+v3
+family set at deg-16 caps (43 families; two-root cap 8, minors 7, odd
+cap 6, blocks to 45×45), with the fiber-Toeplitz tower deepened —
+entry degree of FT$(K,r)$ is $4K+2r$, so degree 16 opens
+$K=4$: specs $(4,0)$, $(3,2)$, $(2,4)$ per sector (even_00/even_11)
+plus h2loc copies, and the pair families extended
+(`pair_jensen_minor` to degrees $\{0,2,4,6\}$).  $K=4$ verified
+exactly (3s; 5×5, 35 labels).  Selectors
+`sel16_toep3_1em4/1em5/5em6.dat-s`; the 5em6 bound
+`-6.666716666666666666666666666666666666667E-1` is exact
+($\ge3.8\times$ above the measured deg-16 wall $\le1.31\times10^{-6}$).
+An `--extra-flag=--gap-cut-e5` variant path is wired into
+`toeplitz_export.py` for the combined tower measurement (uses the new
+`sos_search.py` flag natively; no re-implementation).
+
+**Deg-16 v3 double-precision A/B** (MOSEK, both solves `optimal`, no
+stall; `sdpa_runs/toeplitz_ab_selector_deg16_v3.json`): at
+$\varepsilon=10^{-2}$, control 11.8252 $\to$ **10.7443** ($-9.1\%$) —
+the largest single-point bite measured, matching the deg-14 v3
+pattern at the bigger cone.  Sanity criterion: passed.
+
+**Deg-16 v3 export outcome** (2026-08-18): all 43 families verified
+in-run; m = **1245** (identical to the deg-16 v1 stack — the 32
+additional families revive no further directions), 125 blocks,
+5,163,054 entries, 350 MB; the exporter's new
+`dropped_objective_inconsistent = 0` confirms objective consistency
+of every dropped direction.  Selectors
+`sel16_toep3_1em4/1em5/5em6.dat-s` (m=1246, 126 blocks) staged.  The
+e5-cut-stacked variant is deprioritized (bare e5-cut measured inert
+at GMP precision on deg-14: dual bound and $10^{-4}$ selector
+identical to baseline); the `--extra-flag` path remains available.
+
+## 10. Degree-18 sharp-face stack and the all-measures deg-16 copy
+
+**Deg-16 v3 GMP verdict (orchestrator, 2026-08-18)**: ladder
+959.52 / 1546.05 / 1805.27 at $\varepsilon=10^{-4}/10^{-5}/5\times
+10^{-6}$ — exponent **0.207/0.224**, no re-steepening; dual wall
+$-5.2504\times10^{-9}$ (200-bit, gap $1.8\times10^{-14}$), **250×
+beyond plain deg-16**; active at the wall: the Jensen d7/d8 towers +
+`h2loc_two_root_even_00`.  Wall adversary: perturbed zero-family with
+partial equator mode-4 mass ($p_2=\tfrac13+9.7\times10^{-5}$).
+
+**Deg-18 sharp-face stack** (`deg18_we1_toep3.dat-s`): base =
+`deg18_h2w_h2all_am_we1.dat-s` (m=1015, the weighted-(E1)-projected
+all-measures cone — *both layers projected*: pure layer by
+`e1w_projection_deg18.json`, h2loc layer by
+`e1_projection_deg18.json`; the exporter's new base-shape validation
+caught the single-projection attempt, 64≠59 blocks, before any waste,
+and the corrected rebuild matches the reference exactly: 59 blocks,
+3484 labels).  The full v3 family set at deg-18 caps (43 families;
+FT specs $(4,0),(3,3),(2,5)$ per sector; all verified exactly, with
+projection-driven trims ftoep2 42→33/24 etc.).  Appending unprojected
+valid families to the projected cone is sound: they are valid moment
+constraints for every measure, and the certificate stays inside the
+all-measures cone (composes with the reduction lemma).
+
+**We1 feasibility A/B — Agent B's prediction validated in double
+precision** (`toeplitz_ab_selector_deg18_we1.json`): at
+$\varepsilon=10^{-2}$ the *pure* we1 selector **fails** (MOSEK
+error — the predicted $\varepsilon$-pathology of the unstacked
+sharp-face cone), while the v3-stacked selector is **optimal, trace
+20.4883**.  (At $10^{-3}$ both exceed double precision — deg-18 size;
+caveat: a solver error is not a clean infeasibility certificate, but
+the asymmetry at identical $\varepsilon$ is exactly the predicted
+pattern.  The GMP selectors decide.)
+
 ## Files
 
 | file | content |
@@ -584,6 +661,8 @@ queue: passed, with margin.
 | `sdpa_runs/deg14_h2w_h2all_toep.dat-s` (+sidecars), `sel_toep_1em3/1em4.dat-s` | v1 GMP artifacts (measured: pole $10.63\times\to9.59\times$) |
 | `sdpa_runs/deg14_h2w_h2all_toep2.dat-s` (+`.map.json`, `.families.json`, `.export.log`), `sel_toep2_1em3/1em4/5em5.dat-s`, `blocks_deg14_h2w_h2all_toep2.json` | v2 GMP artifacts (29 families, m=794) |
 | `sdpa_runs/deg14_h2w_h2all_toep3.dat-s` (+sidecars), `sel_toep3_1em3/1em4/5em5/2em5.dat-s`, `blocks_deg14_h2w_h2all_toep3.json` | v3 GMP artifacts (39 families, m=794) |
-| `sdpa_runs/deg16_h2w_h2all_toep.dat-s` (+sidecars), `sel16_toep_1em4/1em5.dat-s` | degree-16 stack (v1 families at caps 8/7, m=1245) |
+| `sdpa_runs/deg16_h2w_h2all_toep.dat-s` (+sidecars), `sel16_toep_1em4/1em5.dat-s` | degree-16 v1 stack (m=1245; measured: $2.17\times$/decade, no re-steepening) |
+| `sdpa_runs/deg16_h2w_h2all_toep3.dat-s` (+sidecars), `sel16_toep3_1em4/1em5/5em6.dat-s` | degree-16 v3 stack (43 families incl. K=4 fiber-Toeplitz, m=1245) |
+| `sdpa_runs/toeplitz_ab_selector_deg16_v3.json` | deg-16 double-precision A/B data |
 | `sdpa_runs/toeplitz_ab_selector.json`, `toeplitz_ab_selector_v2.json`, `toeplitz_ab_selector_v3.json` | double-precision A/B data (v1, v2, v3) |
 | `sdpa_runs/toeplitz_families_exact.json` | exact rational label matrices of the 11 v1 families (3703 label matrices; reproducibility) |
