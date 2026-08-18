@@ -12,3 +12,9 @@
 * Unprojected degree-18: base exported (m = 2184); v3 stack building;
   extrapolated wall ≈ −1e−11 if the deg14→16 rate (~700×/2 degrees)
   sustains.
+
+Proof-carrying ladder complete (2026-08-19): `sel16_am_toep3` traces
+1808.99 / 3055.87 / 3949.27 at ε = 1e−4/1e−5/5e−6 (decade exponent
+0.228, sub-decade 0.370), wall −1.2252e−8 — the same nearly-flat
+behavior as the KKT copy, in the cone that composes with the reduction
+lemma.  Degree-18 + v3 dual (m = 2192) launched.
