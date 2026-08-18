@@ -207,3 +207,27 @@ flat law (attained zero); (B) the multiplier target
 $(h_2+\kappa e_5)E$ with the e5-localized module (docs/E5_WEIGHT_NOTE,
 deg-16-scale build) so that zero is attained by construction.  The
 deg-16 v3 dual (running) measures how far the families move the wall.
+
+## 8. The degree-16 v3 wall: −5.2504e−9 (2026-08-18)
+
+Dual solve of `deg16_h2w_h2all_toep3` (200-bit, 113 min): bound
+**−5.2504467e−9** (primal/dual agree to 1.8e−14 relative; feasibility
+errors 5e−26 / 1.5e−34 — the wall is genuine, not a convergence
+artifact).  Bound cascade: unweighted deg-14 −4.49e−3 → weighted
+deg-14 −2.79e−5 → +v2 −3.66e−6 → deg-16 −1.31e−6 →
+**deg-16+v3 −5.25e−9** (250× over plain deg-16; ~850,000× over the
+program's starting point).  Active at the wall: the Jensen d7/d8
+towers (plain + h2loc) and `h2loc_two_root_even_00`.
+
+Wall adversary (pseudo-moments via `sdpa_extract`): p2 = 1/3 + 9.7e−5
+(h2 ≈ 1.5e−4), p4 = 0.29043 (between ONB 1/3 and pole+Haar 5/18 —
+partial equator mode-4 mass), p6 = 0.26892: a perturbed zero-family
+configuration on which the cone still tolerates E ≈ −3.6e−5.
+
+Zero remains unattained at finite structure; every wall is < 0 with
+super-fast decay under (degree × families).  Next levers, in order:
+(i) deg-18 sharp-face projected (m = 1015) + v3 families (the degree
+lever is the strongest: deg-14+v2 → deg-16+v3 moved the wall ~700×);
+(ii) the e5-localized module for the (h2+κe5)E target (the
+attained-by-design multiplier endgame); (iii) proof-carrying (am/W-KKT)
+copies of whichever wins.
