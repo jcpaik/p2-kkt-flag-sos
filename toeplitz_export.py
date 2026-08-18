@@ -22,7 +22,7 @@ halves (asserted), so the float hand-off is reconstructed exactly by
 rationalize_float.
 
 Appended families (each M(y) = sum_L A_L y_L >= 0, valid for every
-measure, all-measures cone; docs/TOEPLITZ_BLOCKS_NOTE.md):
+measure, all-measures cone; docs/ENRICHMENTS.md):
 
   jensen_pair / h2loc_jensen_pair / h2comp_gram_pair
   jensen_even_00 / jensen_even_11            (T - G, cap 7)
@@ -75,7 +75,7 @@ def base_flags(degree: int, cone: str = "kkt") -> list[str]:
               (deg14/16_h2w_h2all pattern);
     am      : the proof-carrying all-measures cone (no KKT toggles);
     am_we1  : all-measures + the weighted-(E1) two-layer projection
-              (deg18_h2w_h2all_am_we1 pattern; docs/WEIGHTED_E1_NOTE.md).
+              (deg18_h2w_h2all_am_we1 pattern; docs/SHARP_STRUCTURE.md).
     """
     flags = [
         "--degree", str(degree), "--no-pointwise-sos",
@@ -94,7 +94,7 @@ def base_flags(degree: int, cone: str = "kkt") -> list[str]:
     if cone == "am_we1":
         # "both layers projected": pure layer by the weighted-(E1)
         # bases, h2loc layer by the unweighted (E1) bases
-        # (docs/WEIGHTED_E1_NOTE.md sections 6 and 8).
+        # (docs/SHARP_STRUCTURE.md sections 6 and 8).
         flags += [
             "--e1-project",
             f"sdpa_runs/e1w_projection_deg{degree}.json",
@@ -474,7 +474,7 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
     v1 (the GMP-validated set: pole law 10.63x -> 9.59x/decade):
     pair triple + even Jensen (plain, h2loc) + h2comp_gram all sectors.
     v2 adds, per the T2 candidate tables (all measured with matrix
-    kill signs; docs/TOEPLITZ_BLOCKS_NOTE.md section 7): minor Jensen
+    kill signs; docs/ENRICHMENTS.md section 7): minor Jensen
     (plain + h2loc), h2comp_cov, s^2-localized Jensen (collision
     boundary; plain + h2loc), h2comp_gram minors (even + odd), and
     the cap-5 odd-sector Jensen blocks (plain + h2loc).
@@ -524,7 +524,7 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
             ]
     if version == "v3":
         # Fiber-Toeplitz blocks (trigonometric moment matrices of the
-        # leaf's azimuthal fiber; docs/TOEPLITZ_BLOCKS_NOTE.md section 8)
+        # leaf's azimuthal fiber; docs/ENRICHMENTS.md section 8)
         # and the pair-sector moment families, targeting the v2
         # residual (p2 x triangle 50%, triangle 17%, pair products 28%).
         # Entry degree of FT(K, r) is 4K + 2r <= degree; at degree 16
@@ -762,7 +762,7 @@ def run_export(
             {
                 "note": (
                     "Jensen/Toeplitz averaging-contraction blocks "
-                    "adjoined first-class; docs/TOEPLITZ_BLOCKS_NOTE"
+                    "adjoined first-class; docs/ENRICHMENTS.md"
                     ".md.  bound = objValPrimal + 2/3."
                 ),
                 "version": version,

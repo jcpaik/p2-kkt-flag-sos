@@ -445,7 +445,7 @@ def gap_elementary_vector(order: int) -> dict[Label, Fraction]:
 
     e_k(I - A_2) = sum_j (-1)^j C(5 - j, k - j) e_j(A_2).  For k = 5 this
     is det(I - A_2) = e_5(B), the face-vanishing multiplier of
-    docs/MULTI_WEIGHT_PROGRAM.md: it is >= 0 for every measure (operator
+    docs/ENRICHMENTS.md: it is >= 0 for every measure (operator
     bound 0 <= I - A_2 <= 2I), vanishes identically on the pole-equator
     stratum, and is strictly positive on a weak-* dense set.
     """
@@ -2612,7 +2612,7 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 "--e5-weight composes the weight q = h2 + kappa*e5(I-A2) "
                 "and therefore requires --h2-weighted-target (the reduction "
                 "lemma is proved for q of this form; "
-                "docs/MULTI_WEIGHT_PROGRAM.md Fact 3)"
+                "docs/ENRICHMENTS.md Fact 3)"
             )
         # Weighted target (h2 + kappa*e5(I-A2)) * E: the e5*E part is a
         # disconnected product of the 5-sample gap labels with the pair
@@ -2683,7 +2683,7 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
     # (1/2) h2''[d] * B_base(mu*) at order t^2 with h2''[d] > 0 for
     # generic directions.  Hence the BASE value of every h2-multiplied
     # block must vanish on the E-zero family: the h2loc layer is
-    # projected by the UNWEIGHTED (E1) bases (docs/WEIGHTED_E1_NOTE.md).
+    # projected by the UNWEIGHTED (E1) bases (docs/SHARP_STRUCTURE.md).
     e1loc_sectors = None
     e1loc_spin2 = None
     localized_projected_matrices: dict[str, dict[Label, np.ndarray]] = {}
@@ -3343,7 +3343,7 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
 
     if getattr(args, "gap_cut_e5", False) or e5_kappa:
         # e5(I - A2) = det(I - A2) >= 0: the first face-vanishing scalar
-        # shadow of the operator gap (docs/MULTI_WEIGHT_PROGRAM.md Facts
+        # shadow of the operator gap (docs/ENRICHMENTS.md Facts
         # 1-3).  Valid for every measure; vanishes identically on the
         # whole pole-equator stratum; needs the 5-sample cycle labels.
         variable = cp.Variable((1, 1), symmetric=True, name="gap_cut_e5")
@@ -4886,7 +4886,7 @@ def parse_args() -> argparse.Namespace:
             "flag-square families by the UNWEIGHTED (E1) bases: "
             "second-order complementary slackness at the E-zero family "
             "forces the base value of every h2-multiplied block to "
-            "vanish there (docs/WEIGHTED_E1_NOTE.md)"
+            "vanish there (docs/SHARP_STRUCTURE.md)"
         ),
     )
     parser.add_argument("--h2-localized-flags", action="store_true")
@@ -4950,7 +4950,7 @@ def parse_args() -> argparse.Namespace:
             "add the scalar cut e5(I - A2) = det(I - A2) >= 0 as a 1x1 "
             "block: the first face-vanishing elementary symmetric "
             "invariant of the operator gap (5-sample cycle labels; "
-            "docs/MULTI_WEIGHT_PROGRAM.md)"
+            "docs/ENRICHMENTS.md)"
         ),
     )
     parser.add_argument(
@@ -4968,7 +4968,7 @@ def parse_args() -> argparse.Namespace:
             "nonnegative rational kappa: replace the target h2*E by "
             "(h2 + kappa*e5(I - A2))*E; requires --h2-weighted-target "
             "and implies --gap-cut-e5 and --e5-localized-harmonics "
-            "(docs/MULTI_WEIGHT_PROGRAM.md, docs/E5_WEIGHT_NOTE.md)"
+            "(docs/ENRICHMENTS.md, docs/ENRICHMENTS.md)"
         ),
     )
     parser.add_argument("--box-bounds", action="store_true")

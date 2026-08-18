@@ -2,13 +2,13 @@
 """Certificate-side epsilon-trace A/B: do theta atoms damp the pole?
 
 The minimal-trace selector min sum tr Q_b s.t. e(Q) = E + eps is the
-attainment diagnostic (docs/EXACT_ZERO_PROGRAM.md section 2.4): a
+attainment diagnostic (docs/ENRICHMENTS.md section 2.4): a
 1/eps trace law means the sharp certificate escapes.  The theta-atom
 adjunction gives certificates the extra generators
 
     lambda_c * ( T_c - sum_labels row_c[l] y_l ),   lambda_c >= 0,
 
-(the window cuts of docs/THETA_ATOM_NOTE.md, valid at every measure),
+(the window cuts of docs/ENRICHMENTS.md, valid at every measure),
 which on the certificate side means each label equality gains
 lambda_c * (T_c 1[l = const] - row_c[l]).  This script captures the
 exact selector problem built by sos_search.solve (unscaled), rebuilds

@@ -329,7 +329,7 @@ def negative_controls(measure: Measure) -> dict[str, str]:
             total += w * (32 * t**6 - 48 * t**4 + 18 * t**2 - 1 + Fraction(1, 3))
         return total
 
-    # S^_1 = U_5(t1) t2 - U_4(t1) s + s/3 (docs/TWO_ROOT_GENERATORS.md §5)
+    # S^_1 = U_5(t1) t2 - U_4(t1) s + s/3 (docs/SHARP_STRUCTURE.md §5)
     def s1_hat_average(x1: Vec, x2: Vec) -> Fraction:
         s_value = dot(x1, x2)
         total = Fraction(0)

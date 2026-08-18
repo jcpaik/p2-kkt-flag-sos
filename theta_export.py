@@ -4,7 +4,7 @@
 Produces an exactly rational SDPA sparse file for the epsilon = 0
 feasibility problem over the proof-carrying (all-measures) degree-14
 cone augmented with the theta-atom window cuts of
-docs/THETA_ATOM_NOTE.md section 3:
+docs/ENRICHMENTS.md section 3:
 
     sum_{N' < |n|, within degree} q^{n^2} Q[Ghat_n m](y)  <=  T^f_q(N')
 
@@ -119,7 +119,7 @@ def cap_cut_rows(degree: int = 14, localized: bool = False):
     """Pointwise sup-norm caps: Q[Ghat_n](y) <= (4/3 + c|n|)^2 (L7),
     and their h2-localized copies (h2 <= 1).  Valid at every measure;
     exact rational constants.  These are the per-n sharp instruments
-    against sign-alternating escapes (docs/THETA_ATOM_NOTE.md sec. 8).
+    against sign-alternating escapes (docs/ENRICHMENTS.md sec. 8).
     """
     cuts = []
     effective_degree = degree - (2 if localized else 0)

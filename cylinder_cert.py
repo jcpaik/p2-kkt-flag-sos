@@ -19,7 +19,7 @@ int a^2 dsigma >= 1/3, where
 
     B(sigma) = int int c_0 dsigma dsigma - sum_{k=1}^{4} pen_k(sigma).
 
-Every inequality used is a theorem; see docs/CYLINDRICAL_DOMINATION.md for
+Every inequality used is a theorem; see docs/SUBCASES_AND_RECORD.md for
 statements, proofs, and the validity ledger.  All mode data below is exact
 (rational); `verify_mode_decomposition()` re-proves the decomposition as a
 polynomial identity in pure sympy arithmetic, and `derive_modes_by_integration`
@@ -352,7 +352,7 @@ def signed_abs(Q):
 # stands for the even pair (delta_{alpha} + delta_{-alpha})/2 (just delta_0
 # when alpha = 0).  All moment functions below are even, so only alpha >= 0
 # matters.  Validity of each penalty is proved in
-# docs/CYLINDRICAL_DOMINATION.md (validity ledger).
+# docs/SUBCASES_AND_RECORD.md (validity ledger).
 # ----------------------------------------------------------------------------
 
 #: Reduced mode-1 matrix: principal-axis constraint kills the first coordinate
@@ -785,7 +785,7 @@ def verify_circle_pair_theorem() -> list[tuple[str, bool]]:
         equality iff s = alpha^2 = 1/3 with |rho-hat(3)| = |rho-hat(6)| = 1
         (the ONB orbit) -- or the trivial zero-energy witnesses on the family.
 
-    Proof scheme (docs/CYLINDRICAL_DOMINATION.md section 6): with
+    Proof scheme (docs/SUBCASES_AND_RECORD.md section 6): with
     E = C2(s) + sum_k y_k v_k(s), y_k = |rho-hat(k)|^2 in [0,1], and the
     Toeplitz couplings y_{2k} >= ((2 y_k - 1)^+)^2 for k = 2, 3, the minimum
     over admissible y is bounded below by explicit piecewise-rational

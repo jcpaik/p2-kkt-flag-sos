@@ -2435,7 +2435,7 @@ def main() -> None:
     )
 
     # ------------------------------------------------------------------
-    # Identities displayed in docs/TWO_ROOT_GENERATORS.md.
+    # Identities displayed in docs/SHARP_STRUCTURE.md.
     # ------------------------------------------------------------------
 
     # Explicit expansions of the canonical mode-2 lifts.
@@ -2723,7 +2723,7 @@ def main() -> None:
     # isotropic measure and on the pole-equator family.  For a pure square,
     # vanishing at Haar measure and its isotropic perturbations forces the
     # leaf, as a function of y, to be a pure degree-2 spherical harmonic
-    # (see docs/E1_ADMISSIBLE.md §6): h_2-multiplied blocks are exempt (the
+    # (see docs/SHARP_STRUCTURE.md §6): h_2-multiplied blocks are exempt (the
     # h_2 factor already vanishes on both families).  In the spin-k sector
     # the leaf radial f must satisfy
     #     f(t) (1-t^2)^{k/2}  in  span{ P_2^k(t) },

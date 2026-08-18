@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Averaging-contraction (conditional-Jensen / Toeplitz) flag blocks.
 
-Implements the mathematical program of docs/TOEPLITZ_BLOCKS_NOTE.md
+Implements the mathematical program of docs/ENRICHMENTS.md
 (mission "Agent T": translate the circle-pair Toeplitz mechanism of
-docs/CYLINDRICAL_DOMINATION.md section 6 into valid flag-algebra blocks).
+docs/SUBCASES_AND_RECORD.md section 6 into valid flag-algebra blocks).
 
 The object.  For a vector phi = (phi_alpha) of leaf functions of the
 rooted three-sample configuration (x1, x2, y) -- polynomials
@@ -43,7 +43,7 @@ new coupling between the pair sector and the pair-product sector.
 h2-localized copies multiply by the scalar h2(mu) = (3 p2 - 1)/2 >= 0
 (valid for every measure since p2 = tr Sigma^2 >= 1/3), shifting labels
 by p2-products: exactly the p2 x (...) sectors where the measured
-weighted escape lives (docs/UNPROJECTED_ESCAPE_NOTE.md).
+weighted escape lives (docs/SUBCASES_AND_RECORD.md).
 
 Everything exact-rational; self-tests compare the label expansions with
 direct numerical integration on random atomic antipodal measures
@@ -486,7 +486,7 @@ def build_fiber_toeplitz_family(
     positivity of the fiber measure, NOT a polynomial square: the
     Fejer-Riesz factors |w|^K e^{2ij phi} are non-polynomial for
     j > K/2, so no within-degree polynomial Gram reproduces the
-    constant-diagonal structure (see docs/TOEPLITZ_BLOCKS_NOTE.md).
+    constant-diagonal structure (see docs/ENRICHMENTS.md).
     Entries are triangle labels; h2loc copies give p2 x triangle.
     ``sector`` selects the per-vertex parity class of the radial
     factors g_a (pairs from one class keep entries leaf-even).

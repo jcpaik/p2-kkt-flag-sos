@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Theta-atom machinery: exact generators, label expansions, tail majorants.
 
-Implements docs/THETA_ATOM_NOTE.md.  The theta atom for family f in {2, 6}
+Implements docs/ENRICHMENTS.md.  The theta atom for family f in {2, 6}
 and rational q in (0, 1) is the resummed diagonal series
 
     tau_{f,q}(mu) = sum_{n in Z} q^{n^2} Q[Ghat^f_n](mu),
@@ -9,7 +9,7 @@ and rational q in (0, 1) is the resummed diagonal series
 where Q[A] is the 1x1 two-root Gram block
 E[(int A(x1.y, x2.y, x1.x2) dmu(y))^2] and Ghat^2_n = Chat_n,
 Ghat^6_n = Shat_n are the modulated (E1)-admissible generators of
-docs/TWO_ROOT_GENERATORS.md.  Everything here is exact rational except
+docs/SHARP_STRUCTURE.md.  Everything here is exact rational except
 the explicitly numeric self-tests and ray pairings.
 
 Library + CLI:
@@ -117,7 +117,7 @@ def t1_poly(coefficients: list[Fraction]) -> Poly3:
 
 
 # ---------------------------------------------------------------------------
-# Modulated generator families (docs/TWO_ROOT_GENERATORS.md)
+# Modulated generator families (docs/SHARP_STRUCTURE.md)
 # ---------------------------------------------------------------------------
 
 C0: Poly3 = {(0, 0, 0): Fraction(-1), (2, 0, 0): Fraction(2)}       # T2(t1)
@@ -206,7 +206,7 @@ def h2_localize(expansion):
 
     h2 = (3 p2 - 1)/2, and p2 x (k-point label) is the disconnected
     product label; h2 in [0, 1] on probability measures, so h2-localized
-    atoms keep the same tail majorants (docs/THETA_ATOM_NOTE.md sec. 8).
+    atoms keep the same tail majorants (docs/ENRICHMENTS.md sec. 8).
     """
     from sos_search import multiply_labels
 
@@ -226,7 +226,7 @@ def h2_localize(expansion):
 
 
 # ---------------------------------------------------------------------------
-# Tail majorants (exact rational; docs/THETA_ATOM_NOTE.md section 2.1)
+# Tail majorants (exact rational; docs/ENRICHMENTS.md section 2.1)
 # ---------------------------------------------------------------------------
 
 def tail_first_moment(family: int, q: Fraction, cut: int) -> Fraction:

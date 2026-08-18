@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Pair the theta-atom window functionals against the weighted-escape D.
 
-D (sdpa_runs/fingerprint_D_e3e4.json, docs/UNPROJECTED_ESCAPE_NOTE.md)
+D (sdpa_runs/fingerprint_D_e3e4.json, docs/SUBCASES_AND_RECORD.md)
 is the label expansion of the growth direction of the weighted
 selector certificates between eps = 1e-3 and 1e-4.  This script pairs,
 by plain dot product in label space as directed:
@@ -12,7 +12,7 @@ by plain dot product in label space as directed:
 and the corresponding homogenized window functionals
 -sum_{N'<|n|<=N} q^{n^2} l_n^(loc).  Positive window mass = the valid
 upper cut pairs with the "cut sign" (kills the escape per the
-recession-cone analysis of docs/THETA_ATOM_NOTE.md section 3).
+recession-cone analysis of docs/ENRICHMENTS.md section 3).
 
 Usage:
   .venv/bin/python theta_fingerprint_pair.py \

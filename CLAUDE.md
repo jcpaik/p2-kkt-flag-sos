@@ -9,13 +9,19 @@ this repository exists to produce, sharpen, or verify that object.
 
 1. [PLAN.md](PLAN.md) — "Status" and "Next actions" at the top are the
    live state and the work queue.  Do the first unclaimed queue item.
-2. [docs/EXACT_ZERO_PROGRAM.md](docs/EXACT_ZERO_PROGRAM.md) — the
-   strategy document (why finite degree cannot land on zero, the
-   weighted/rational-certificate program, the weight-vs-cut sign rule).
-3. [docs/MATHEMATICAL_BACKGROUND.md](docs/MATHEMATICAL_BACKGROUND.md)
-   and [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) — definitions
-   (labels, flags, blocks, degree/arity) and the map from math to
-   `sos_search.py` options.  Read on demand, not up front.
+2. [docs/ENRICHMENTS.md](docs/ENRICHMENTS.md) — the strategy document:
+   why finite degree cannot land on zero, the weighted/rational
+   certificate program, the weight-vs-cut sign rule, and every
+   weight/cut/block family with its validity proof and verdict.
+3. [docs/FOUNDATIONS.md](docs/FOUNDATIONS.md) — definitions (labels,
+   flags, blocks, degree/arity), the certificate theorem and wrapper
+   lemmas, the math-to-`sos_search.py` map, and the solver/export
+   operational appendix.  Read on demand, not up front.
+4. [docs/SHARP_STRUCTURE.md](docs/SHARP_STRUCTURE.md) — the (E1)
+   sharp-certificate structure theory; and
+   [docs/SUBCASES_AND_RECORD.md](docs/SUBCASES_AND_RECORD.md) — the
+   proved sub-cases (axisymmetric, circle-pair) and the full
+   measurement record.  These four files are the entire docs/ set.
 
 **Update discipline**: every measurement, positive or negative, gets a
 dated entry in the relevant PLAN.md checklist item, with the data file
@@ -30,7 +36,7 @@ prune the search space for the next agent.  New derivations go in a
   MOSEK license at `~/mosek/mosek.lic`).  Tests: `python -m pytest -q`.
 - High-precision SDP solver: `sdpa_runs/sdpa_gmp` (SDPA-GMP 7.1.3,
   built from nakatamaho/sdpa-gmp; rebuild recipe in
-  [docs/H2_WEIGHTED_EXPERIMENT.md](docs/H2_WEIGHTED_EXPERIMENT.md) §1).
+  [docs/FOUNDATIONS.md](docs/FOUNDATIONS.md) Appendix A).
   Invoke with option-style flags only:
   `./sdpa_gmp -ds PROBLEM.dat-s -o OUT.result -p param_200bit.sdpa`
   (positional arguments are misparsed).  Parameter files
@@ -70,4 +76,4 @@ prune the search space for the next agent.  New derivations go in a
 - When adding a candidate constraint or weight, first run the cheap
   pairing test against the current escape data (sign rule:
   positive ray pairing → weight, negative → cut; see
-  [docs/GAP_CUTS_NOTE.md](docs/GAP_CUTS_NOTE.md)) before any big solve.
+  [docs/ENRICHMENTS.md](docs/ENRICHMENTS.md)) before any big solve.

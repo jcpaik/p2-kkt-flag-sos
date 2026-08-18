@@ -88,17 +88,20 @@ direction at the minimizing face — an open structural question. See
 
 ## Start here
 
-- [Mathematical background](docs/MATHEMATICAL_BACKGROUND.md) defines the
-  energy, copositivity, KKT conditions, flags, SOS blocks, degree, and arity
-  from the ground up.
-- [Certificate theorem](docs/CERTIFICATE_THEOREM.md) gives the exact
-  certificate formula and proves what a rationally verified certificate would
-  imply.
-- [Implementation guide](docs/IMPLEMENTATION.md) connects the mathematics to
-  the Python code and command-line options.
-- [Degree-14 command reference](docs/DEGREE14_COMMAND_REFERENCE.md) derives
-  every flag, KKT kernel, rank identity, block size, and dual constraint used
-  by the strongest five-point command.
+- [Foundations](docs/FOUNDATIONS.md) — the problem and its equivalent
+  formulations, the certificate framework (labels, flags, blocks,
+  degree/arity), the exact certificate theorem and wrapper lemmas, the
+  complete math-to-code map, and the solver/export operational appendix.
+- [Sharp structure](docs/SHARP_STRUCTURE.md) — non-attainment, the (E1)
+  complementary-slackness equations solved in closed form, the two-root
+  modulated generators, and the weighted-(E1) classification.
+- [Enrichments](docs/ENRICHMENTS.md) — the exact-zero program: the
+  weighted/rational-certificate route, the weight-vs-cut sign rule, and
+  every weight, cut, and block family (gap cuts, theta atoms, Jensen and
+  fiber-Toeplitz blocks, the e5 program) with validity proofs.
+- [Sub-cases and record](docs/SUBCASES_AND_RECORD.md) — the exactly
+  solved sub-cases (axisymmetric, antipodal circle-pairs) with their
+  rational certificates, and the full measurement record.
 - [Numerical results](RESULTS.md) records the hierarchy and solver outcomes.
 
 ## Installation
@@ -152,9 +155,10 @@ certificate.
 sos_search.py                 SDP construction and MOSEK interface
 test_sos_search.py            exact-identity and equality-face tests
 RESULTS.md                    numerical search record
-docs/MATHEMATICAL_BACKGROUND.md
-docs/CERTIFICATE_THEOREM.md
-docs/IMPLEMENTATION.md
+docs/FOUNDATIONS.md           problem, certificate framework, code map
+docs/SHARP_STRUCTURE.md       (E1) theory and weighted-(E1) classification
+docs/ENRICHMENTS.md           weights, cuts, and block families
+docs/SUBCASES_AND_RECORD.md   solved sub-cases and measurement record
 ```
 
 ## Related work

@@ -14,26 +14,26 @@ Where things stand (details and provenance in §3–§6 below):
 | best unweighted bound, degree 14 / 18 | $-4.4856\times10^{-3}$ / $-7.5595\times10^{-5}$ | RESULTS.md |
 | weighted target $h_2E$ + full localized module, degree 14 | $\mathbf{-2.7909\times10^{-5}}$ ($161\times$ gain; re-verified 2026-08-17 post-regeneration, $-2.7908758\times10^{-5}$) | §5 Stage 2 |
 | adding the $e_k(I-A_2)$ cuts to that bound | identical to 12 digits (cuts slack at optimum) | §4 |
-| $\varepsilon$-trace law, weighted, deg 14 (new scale, 2026-08-17) | $765\to8134\to13637$ at $\varepsilon=10^{-3},10^{-4},5.3\times10^{-5}$ — $10.6\times$/decade, simple pole ($\varepsilon^{-1.03}$) | docs/UNPROJECTED_ESCAPE_NOTE.md |
-| projected-dual escape ray | pure $g_4$; **killed** by the scalar cuts (`--find-ray` infeasible A/B; re-verified 2026-08-17) | §4, docs/GAP_CUTS_NOTE.md |
-| **the surviving escape, fingerprinted (2026-08-17)** | the $h_2$-**localized theta tower**: $78\%$ $p_2\times$(graph_4/triangle/pair-products), $22\%$ connected graph_4/triangle, $0\%$ pair sector — every scalar $p_k$-invariant is blind to it | docs/UNPROJECTED_ESCAPE_NOTE.md |
-| second weight candidate | $e_5(I-A_2)=\det(I-A_2)$: valid, dense-positive, vanishes on the **whole pole–equator stratum**; needs `graph_5` labels | docs/MULTI_WEIGHT_PROGRAM.md |
-| theta-atom adjunction (measured 2026-08-17) | localized atoms re-bound the projected dual (`infeasible` A/B — first (E1)-derived mechanism); but **inert on the finite-$\varepsilon$ pole**: theta-augmented selector traces $765.0/8133.57$ = controls to 6 digits | docs/THETA_ATOM_NOTE.md |
-| **two new exactly-solved sub-cases (2026-08-17)** | axisymmetric measures (rational Handelman-8 certificate, 6/6); antipodal circle-pairs, any latitude (Toeplitz coupling, 27/27, sharp at ONB) | §1, docs/CYLINDRICAL_DOMINATION.md |
-| scalar mode-domination | **falsified exactly** (min $-128159/27456$; cross shadow $-1/192$): the missing constraint is measure-valued Toeplitz joint positivity | docs/CYLINDRICAL_DOMINATION.md |
-| weighted-(E1) arity 2 (2026-08-17) | classified (69/69): admissible leaves = root-equivariant traceless contractions; $\hat C_n$ tower survives, $\hat S_n$ dies; third-order law forces unweighted-(E1) bases on the $h_2$loc layer | docs/WEIGHTED_E1_NOTE.md |
-| **split verdict on the pole (2026-08-17)** | the selector growth direction is $80.6\to95.7\%$ **inside** the sharp-face admissible span as $\varepsilon\downarrow$: the pole is non-attainment *inside* the sharp cone — projections cannot block it, only cuts on the admissible tower | docs/WEIGHTED_E1_NOTE.md |
-| degree-18, sharp-face projected | **reachable**: `deg18_h2w_h2all_am_we1.dat-s`, m = 1015 (< unprojected deg-16's 1243); deg16 le1 m = 1173 | sdpa_runs/, docs/WEIGHTED_E1_NOTE.md |
+| $\varepsilon$-trace law, weighted, deg 14 (new scale, 2026-08-17) | $765\to8134\to13637$ at $\varepsilon=10^{-3},10^{-4},5.3\times10^{-5}$ — $10.6\times$/decade, simple pole ($\varepsilon^{-1.03}$) | docs/SUBCASES_AND_RECORD.md |
+| projected-dual escape ray | pure $g_4$; **killed** by the scalar cuts (`--find-ray` infeasible A/B; re-verified 2026-08-17) | §4, docs/ENRICHMENTS.md |
+| **the surviving escape, fingerprinted (2026-08-17)** | the $h_2$-**localized theta tower**: $78\%$ $p_2\times$(graph_4/triangle/pair-products), $22\%$ connected graph_4/triangle, $0\%$ pair sector — every scalar $p_k$-invariant is blind to it | docs/SUBCASES_AND_RECORD.md |
+| second weight candidate | $e_5(I-A_2)=\det(I-A_2)$: valid, dense-positive, vanishes on the **whole pole–equator stratum**; needs `graph_5` labels | docs/ENRICHMENTS.md |
+| theta-atom adjunction (measured 2026-08-17) | localized atoms re-bound the projected dual (`infeasible` A/B — first (E1)-derived mechanism); but **inert on the finite-$\varepsilon$ pole**: theta-augmented selector traces $765.0/8133.57$ = controls to 6 digits | docs/ENRICHMENTS.md |
+| **two new exactly-solved sub-cases (2026-08-17)** | axisymmetric measures (rational Handelman-8 certificate, 6/6); antipodal circle-pairs, any latitude (Toeplitz coupling, 27/27, sharp at ONB) | §1, docs/SUBCASES_AND_RECORD.md |
+| scalar mode-domination | **falsified exactly** (min $-128159/27456$; cross shadow $-1/192$): the missing constraint is measure-valued Toeplitz joint positivity | docs/SUBCASES_AND_RECORD.md |
+| weighted-(E1) arity 2 (2026-08-17) | classified (69/69): admissible leaves = root-equivariant traceless contractions; $\hat C_n$ tower survives, $\hat S_n$ dies; third-order law forces unweighted-(E1) bases on the $h_2$loc layer | docs/SHARP_STRUCTURE.md |
+| **split verdict on the pole (2026-08-17)** | the selector growth direction is $80.6\to95.7\%$ **inside** the sharp-face admissible span as $\varepsilon\downarrow$: the pole is non-attainment *inside* the sharp cone — projections cannot block it, only cuts on the admissible tower | docs/SHARP_STRUCTURE.md |
+| degree-18, sharp-face projected | **reachable**: `deg18_h2w_h2all_am_we1.dat-s`, m = 1015 (< unprojected deg-16's 1243); deg16 le1 m = 1173 | sdpa_runs/, docs/SHARP_STRUCTURE.md |
 | weighted deg-16 at 128-bit | spurious pdINF after 37 min — **use 200-bit** for weighted bound solves at degree ≥ 16 | sdpa_runs/REGEN_NOTES.md |
 | **weighted degree-16 bound (2026-08-17, 200-bit, 71 min)** | $\mathbf{-1.3140\times10^{-6}}$ — $21\times$ better than weighted deg-14, $57\times$ better than *unweighted deg-18*; the super-geometric weighted decay is confirmed; deg-16 wall now $\approx1.3\times10^{-6}$ | `deg16_h2w_h2all_200.result` |
-| **Jensen/covariance cut tower vs the pole (2026-08-17/18)** | v1/v2/v3 traces at $10^{-4}$: $7035/1544/1473$ vs control $8134$; window exponent $1.03\to0.55$; **dual bound $-2.79\times10^{-5}\to-3.6605\times10^{-6}$ ($7.6\times$) at degree 14**; below $5\times10^{-5}$ the law re-steepens — the escape *saturates* the covariance inequalities (deterministic-fiber kernel) | docs/UNPROJECTED_ESCAPE_NOTE.md §4–5, docs/TOEPLITZ_BLOCKS_NOTE.md |
-| $e_5(I-A_2)$ implemented (2026-08-18) | exact 35-label `graph_5` expansion; $0\le e_5\le(4/5)^5$ two-sided validity; **first scalar invariant to move a bound** ($-1.920\to-1.832\times10^{-4}$ double); deep-escape pairing cut-signed ($-1.26\times10^5$); grows positive-quadratically off the stratum | docs/E5_WEIGHT_NOTE.md |
+| **Jensen/covariance cut tower vs the pole (2026-08-17/18)** | v1/v2/v3 traces at $10^{-4}$: $7035/1544/1473$ vs control $8134$; window exponent $1.03\to0.55$; **dual bound $-2.79\times10^{-5}\to-3.6605\times10^{-6}$ ($7.6\times$) at degree 14**; below $5\times10^{-5}$ the law re-steepens — the escape *saturates* the covariance inequalities (deterministic-fiber kernel) | docs/SUBCASES_AND_RECORD.md §4–5, docs/ENRICHMENTS.md |
+| $e_5(I-A_2)$ implemented (2026-08-18) | exact 35-label `graph_5` expansion; $0\le e_5\le(4/5)^5$ two-sided validity; **first scalar invariant to move a bound** ($-1.920\to-1.832\times10^{-4}$ double); deep-escape pairing cut-signed ($-1.26\times10^5$); grows positive-quadratically off the stratum | docs/ENRICHMENTS.md |
 | degree-16 selector law | $4073.7\to14068.7$ at $10^{-4}\to10^{-5}$ ($3.45\times$/decade); +Jensen v1 stack: $3752.6/8151.9$ ($2.17\times$, exp 0.34) | sdpa_runs/sel16_* |
-| **deg-16 + v3 stack (43 families, 2026-08-18)** | trace law $959.5/1546.0/1805.3$ at $10^{-4}/10^{-5}/5\times10^{-6}$ — **exponent 0.21, no re-steepening**; dual wall $\mathbf{-5.2504\times10^{-9}}$ ($250\times$ over plain deg-16; gap $1.8\times10^{-14}$) | docs/UNPROJECTED_ESCAPE_NOTE.md §7–8 |
-| bare $e_5$ cut at GMP | inert (bound and $10^{-4}$ trace = baseline); $e_5$'s route is the localized-module weight | docs/E5_WEIGHT_NOTE.md, REGEN_NOTES |
+| **deg-16 + v3 stack (43 families, 2026-08-18)** | trace law $959.5/1546.0/1805.3$ at $10^{-4}/10^{-5}/5\times10^{-6}$ — **exponent 0.21, no re-steepening**; dual wall $\mathbf{-5.2504\times10^{-9}}$ ($250\times$ over plain deg-16; gap $1.8\times10^{-14}$) | docs/SUBCASES_AND_RECORD.md §7–8 |
+| bare $e_5$ cut at GMP | inert (bound and $10^{-4}$ trace = baseline); $e_5$'s route is the localized-module weight | docs/ENRICHMENTS.md, REGEN_NOTES |
 | all-measures (proof-carrying) selector law | $2366.8\to13873.3$ ($5.86\times$/decade) | sdpa_runs/sel_am_* |
-| (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/E1_ADMISSIBLE.md |
-| wrapper lemmas for the final proof | drafted, machine-checked | docs/WRAPPER_LEMMAS.md |
+| (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/SHARP_STRUCTURE.md |
+| wrapper lemmas for the final proof | drafted, machine-checked | docs/FOUNDATIONS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
 
 **Normalization note (2026-08-17).**  The solver target was changed
@@ -62,13 +62,13 @@ lemma, §5) and strictly stronger numerically; proof-carrying runs must
 use the all-measures cone (§5 composition caveat); scalar functions of
 invariants ($\sqrt{h_2}$-adjunction, $h_2$ powers, $e_k(I-A_2)$ as
 weights) are measured dead — see the sign rule in
-docs/GAP_CUTS_NOTE.md.
+docs/ENRICHMENTS.md.
 
 ## Next actions (work queue, in order)
 
 *(2026-08-17: items 1–2 of the previous queue are done — the artifact
 store was wiped and regenerated first; see the dashboard and
-docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
+docs/SUBCASES_AND_RECORD.md.  New queue:)*
 
 1. **Kill the fingerprinted escape** (one prong measured, two open):
    (a) ~~$h_2$-localized theta-atom windows~~ — **measured inert**
@@ -76,9 +76,9 @@ docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
    control traces $765.0/8133.57$ to 6 digits at
    $\varepsilon=10^{-3}/10^{-4}$; the 136 window/cap cuts block the
    fingerprinted direction but certificate mass routes around them
-   (docs/THETA_ATOM_NOTE.md verdict: recession repair only).
+   (docs/ENRICHMENTS.md verdict: recession repair only).
    (b) ~~arity-2 weighted-(E1) projection~~ — **classified and
-   measured** (docs/WEIGHTED_E1_NOTE.md): the projection is
+   measured** (docs/SHARP_STRUCTURE.md): the projection is
    structurally *unable* to block the escape (it removes certificate
    generators; the growth direction lives inside the admissible span
    — the split verdict above).  Its value is the reduced GMP sizes
@@ -109,11 +109,11 @@ docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
    selector grid is exported (`sel_am_1em3/1em4/5em5.dat-s`); solve
    after item 2 releases the GMP slot, fingerprint, and check the
    escape is the same tower (expected).  Or implement the $W$-KKT
-   re-encoding (docs/MULTI_WEIGHT_PROGRAM.md §5) to make the strong
+   re-encoding (docs/ENRICHMENTS.md §5) to make the strong
    cone proof-carrying.
 4. **Multi-weight program**: if item 1 leaves a residual escape, decide
    the `graph_5` label extension for the $e_5(I-A_2)$ weight /
-   depth-$\le4$ $A_2$-word blocks (docs/MULTI_WEIGHT_PROGRAM.md §4);
+   depth-$\le4$ $A_2$-word blocks (docs/ENRICHMENTS.md §4);
    the multiplier search over any dictionary is convex (ibid. §1).
 5. **Exactification, the moment any trace law plateaus**: max-margin
    interior point (§3 fixes list) → rational rounding → independent
@@ -123,18 +123,18 @@ docs/UNPROJECTED_ESCAPE_NOTE.md.  New queue:)*
 ## Map of the repository
 
 Code: `sos_search.py` (hierarchy, exports, `--find-ray`, all toggles —
-see docs/IMPLEMENTATION.md), `solve_e1.py` (exact (E1) solver +
+see docs/FOUNDATIONS.md), `solve_e1.py` (exact (E1) solver +
 projections), `sdpa_selector.py` (min-trace selector transform),
 `sdpa_extract.py` (parse GMP results), `verify_certificate.py` /
 `verify_exact_structure.py` (independent exact checkers).
 
-Documents: strategy — docs/EXACT_ZERO_PROGRAM.md; session notes with
-full derivations — docs/GAP_CUTS_NOTE.md (cuts/sign rule),
-docs/H2_WEIGHTED_EXPERIMENT.md (the $161\times$ mechanism); theory
-reference — docs/MATHEMATICAL_BACKGROUND.md, docs/STRUCTURE.md,
-docs/CERTIFICATE_THEOREM.md, docs/LIMIT_CERTIFICATE.md,
-docs/E1_ADMISSIBLE.md, docs/TWO_ROOT_GENERATORS.md,
-docs/WRAPPER_LEMMAS.md; measurement log — RESULTS.md (committed
+Documents: strategy — docs/ENRICHMENTS.md; session notes with
+full derivations — docs/ENRICHMENTS.md (cuts/sign rule),
+docs/ENRICHMENTS.md (the $161\times$ mechanism); theory
+reference — docs/FOUNDATIONS.md, docs/FOUNDATIONS.md,
+docs/FOUNDATIONS.md, docs/SHARP_STRUCTURE.md,
+docs/SHARP_STRUCTURE.md, docs/SHARP_STRUCTURE.md,
+docs/FOUNDATIONS.md; measurement log — RESULTS.md (committed
 record) and the checklists below (live).
 
 Data: `sdpa_runs/` (gitignored) — solver binary, parameter files, all
@@ -184,7 +184,7 @@ in general, and $=\tfrac13$ exactly under isotropy — but the isotropic version
   corner-vanishing.  Verified independently in pure rational
   arithmetic: `cylinder_cert.py m1 --verify
   sdpa_runs/cylinder/m1_certificate.json` (6/6).  See
-  [Cylindrical domination](docs/CYLINDRICAL_DOMINATION.md).
+  [Cylindrical domination](docs/SUBCASES_AND_RECORD.md).
 * **Antipodal circle-pair measures (2026-08-17, new).**  $E\ge0$ for
   every antipodal measure supported on a pair of antipodal circles of
   *any* latitude with *arbitrary* fibers, with equality exactly on the
@@ -289,7 +289,7 @@ Decision order:
       reproduces the stored ray's legacy target-pairing normalization) — the $\hat K_4<0$ mode is the
       whole escape.  The constraint that kills it while staying
       sharpness-compatible is the SO(3) operator bound of
-      [Structure](docs/STRUCTURE.md) §4: $I-A_2\succeq0$ with
+      [Structure](docs/FOUNDATIONS.md) §4: $I-A_2\succeq0$ with
       $A_2=\int\pi_2(\rho_x)\,d\mu$.  Verified exactly (`solve_e1.py`
       Part E): the axial quadrupole $\mathrm{diag}(1,1,-2)$ is an
       eigenvalue-1 eigenvector of $A_2(\mu^*)$ **identically across the
@@ -321,7 +321,7 @@ Decision order:
       the $g_4$ ray; none qualifies as a second *weight* (face values
       nonzero on the continuous strata except $e_4$ at the ONB alone,
       and every pairing has the cut sign, not the weight sign) — see
-      [Exact zero program](docs/EXACT_ZERO_PROGRAM.md) §5.  Implemented
+      [Exact zero program](docs/ENRICHMENTS.md) §5.  Implemented
       as `--gap-scalar-cuts` (three $1\times1$ blocks;
       $e_2=6+6p_2-8p_4$, i.e. $p_4\le\tfrac34(1+p_2)$).  **A/B
       `--find-ray` on the (E1)-projected problem: without cuts
@@ -350,9 +350,9 @@ Decision order:
       selector `yMat` blocks via `sdpa_extract.py`, compare block norms
       across $\varepsilon$) to identify the unprojected escape, then
       match it with a weight or a cut by the sign rule of
-      [Gap cuts note](docs/GAP_CUTS_NOTE.md).  Queued behind it: the
+      [Gap cuts note](docs/ENRICHMENTS.md).  Queued behind it: the
       deg16 weighted solve (memory-bound on this machine).
-- [x] **Wrapper lemmas drafted** — [Wrapper lemmas](docs/WRAPPER_LEMMAS.md):
+- [x] **Wrapper lemmas drafted** — [Wrapper lemmas](docs/FOUNDATIONS.md):
       antipodal reduction, minimizer existence, first/second-order
       conditions, identity validity, certificate-validity lemma, the
       weighted-composition requirement with both fixes, and the theta-atom
@@ -367,7 +367,7 @@ Decision order:
 
 ## 5. Enriched-algebra program (exact zero without degree escalation)
 
-Worked out in [Exact zero program](docs/EXACT_ZERO_PROGRAM.md).  The
+Worked out in [Exact zero program](docs/ENRICHMENTS.md).  The
 $\operatorname{tr}C(\varepsilon)\sim1.07/\varepsilon$ simple pole says the
 sharp certificate escapes along a recession direction $Y_0$ — classical SOS
 non-attainment, repaired by a positive multiplier vanishing to first order
@@ -452,7 +452,7 @@ along the leak, i.e. $h_2=(3p_2-1)/2$.
       superseded: the residual escape is $h_2$-orthogonal and
       collision-graded (§6 ray data), so no power of $h_2$ helps, and the
       measured $e_k(I-A_2)$ candidates all carry the cut sign, not the
-      weight sign (§4 update; docs/GAP_CUTS_NOTE.md).  A new weight, if
+      weight sign (§4 update; docs/ENRICHMENTS.md).  A new weight, if
       any, must come out of the **Next actions #1** fingerprint.
 - [ ] Fallback: entire-kernel dictionary (heat kernel at rational
       temperatures, Gegenbauer $(1-2rt+r^2)^{-1/2}$), projected onto the
@@ -463,8 +463,8 @@ along the leak, i.e. $h_2=(3p_2-1)/2$.
 
 ## 6. The (E1) equations solved (Route 3: solve the pattern, don't guess it)
 
-Full derivation and 54 exact checks: [E1 admissible](docs/E1_ADMISSIBLE.md)
-and [Two-root generators](docs/TWO_ROOT_GENERATORS.md),
+Full derivation and 54 exact checks: [E1 admissible](docs/SHARP_STRUCTURE.md)
+and [Two-root generators](docs/SHARP_STRUCTURE.md),
 `python3 solve_e1.py`.  Instead of extrapolating solver coefficients, the
 complementary-slackness equations (E1) are solved in closed form; the
 finite-degree pattern *is* the solution.
@@ -522,7 +522,7 @@ any write-up:
 
 * Reznick (1995) / Scheiderer — positive multipliers repairing SOS
   non-attainment: the classical frame for the $h_2$-weighted route
-  (docs/EXACT_ZERO_PROGRAM.md §1–2 describes exactly this mechanism).
+  (docs/ENRICHMENTS.md §1–2 describes exactly this mechanism).
 * Klep–Magron–Volčič, *SOS certificates for polynomial moment
   inequalities* (arXiv:2306.05761, FoCM 2025) — certificates for
   polynomial expressions in measure moments; structurally our setting

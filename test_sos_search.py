@@ -376,7 +376,7 @@ def test_exact_equality_quotient_annihilates_free_generators():
 def test_weighted_e1_two_root_classification_small_degree():
     """Weighted-(E1): admissible two-root leaves are the deviatoric span.
 
-    At flag degree 4 the closed form (docs/WEIGHTED_E1_NOTE.md) must
+    At flag degree 4 the closed form (docs/SHARP_STRUCTURE.md) must
     equal the exact nullspace of the isotropic necessary rows.
     """
 
@@ -425,7 +425,7 @@ def test_weighted_projection_loader_round_trip(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# e5(I - A2) machinery (docs/E5_WEIGHT_NOTE.md)
+# e5(I - A2) machinery (docs/ENRICHMENTS.md)
 
 
 def test_gap_power_trace_small():

@@ -14,7 +14,7 @@ toeplitz_export.py:
 
 which is the label-space form of the GMP selector (sdpa_selector.py on
 the exported problem; control values tr = 765.0 at eps = 1e-3 and
-8133.6 at eps = 1e-4, docs/UNPROJECTED_ESCAPE_NOTE.md).  The A/B
+8133.6 at eps = 1e-4, docs/SUBCASES_AND_RECORD.md).  The A/B
 compares the control block list against control + Jensen/Toeplitz
 families.  Double precision only -- the decisive measurement stays the
 GMP queue; this is the cheap trend check.

@@ -531,8 +531,8 @@ progress.
 ## The (E1)-projected hierarchy
 
 `solve_e1.py` solves the complementary-slackness circle-mode equations
-(E1) in closed form (54 exact checks; see `docs/E1_ADMISSIBLE.md` and
-`docs/TWO_ROOT_GENERATORS.md`), and
+(E1) in closed form (54 exact checks; see `docs/SHARP_STRUCTURE.md` and
+`docs/SHARP_STRUCTURE.md`), and
 `--e1-project` restricts every flag-square family to the resulting
 admissible subspaces — complete facial reduction against the whole
 continuous zero-energy family, exact and symbolic.  Under `--check-onb`
@@ -612,7 +612,7 @@ Structure of the escape direction:
   signature of mass at t = +-1);
 - the load sits exactly where the two-root flag squares live, at high
   modulation content, consistent with the escape being the truncated
-  theta tower of docs/TWO_ROOT_GENERATORS.md §7.
+  theta tower of docs/SHARP_STRUCTURE.md §7.
 
 Caveat: single double-precision solve, `optimal_inaccurate`; treat as a
 qualitative fingerprint, not exact data.
@@ -630,7 +630,7 @@ of the fully reduced hierarchy.  This also explains the epsilon-trace
 verdict: the escape is h2-orthogonal, so no power of h2 repairs it.
 
 The sharpness-compatible constraint that bounds this direction is the
-SO(3) operator inequality of STRUCTURE.md §4: A_2 = int pi_2(rho_x) dmu
+SO(3) operator inequality of FOUNDATIONS.md §4: A_2 = int pi_2(rho_x) dmu
 is an average of orthogonal involutions, so -I <= A_2 <= I for every
 measure.  Verified in exact arithmetic (solve_e1.py Part E, 57 checks):
 

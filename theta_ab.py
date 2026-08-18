@@ -9,7 +9,7 @@ recession-form theta-atom constraints appended:
   (W_{N',N}) sum_{N'<|n|<=N} q^{n^2} L_n(r) <= 0   (homogenized window cuts)
 
 where L_n is the exact label expansion of the 1x1 two-root block
-Q[Ghat_n] (theta_atoms.py, docs/THETA_ATOM_NOTE.md sections 2-3).  The
+Q[Ghat_n] (theta_atoms.py, docs/ENRICHMENTS.md sections 2-3).  The
 window cuts are the recession form of the one-sided truncation sandwich;
 constants T^f_q(N') drop out along a ray.  A/B statuses:
 
@@ -332,7 +332,7 @@ def rebuild_bound_problem(problem: cp.Problem, labels: list[str]):
 def inhomogeneous_atom_constraints(variable, rows, families, q):
     """Full sandwich content in eliminated form: G rows plus, for each
     multiplier m, the nested window cuts of the per-m atom with their
-    exact rational tail majorants (docs/THETA_ATOM_NOTE.md section 3).
+    exact rational tail majorants (docs/ENRICHMENTS.md section 3).
     """
     added = []
     for family in families:
