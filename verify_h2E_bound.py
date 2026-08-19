@@ -71,34 +71,66 @@ from fractions import Fraction
 
 
 def exact_psd(matrix: list[list[Fraction]]) -> bool:
-    """Exact PSD decision by diagonal-pivoted LDL (Schur complements).
+    """Exact PSD decision: fraction-free elimination, diagonal pivoting.
 
-    A symmetric rational matrix is PSD iff repeatedly: the largest
-    remaining diagonal entry is > 0 (eliminate it), or the remaining
-    matrix is identically zero.  A zero (or negative) maximal diagonal
-    with any nonzero remaining entry certifies an indefinite 1x1 or
-    2x2 principal minor.
+    Scale to integers by the lcm of the denominators (definiteness is
+    invariant under positive scaling), then run one-step fraction-free
+    (Bareiss) Gaussian elimination, at each step choosing the largest
+    remaining diagonal entry as the pivot (a symmetric permutation, so
+    exact divisibility is preserved and pivots are principal minors of
+    the permuted matrix up to positive factors).  Rules:
+
+    * pivot > 0: eliminate (PSD iff the Schur complement is PSD);
+    * pivot < 0: a negative principal minor of a Schur complement of a
+      positive-definite part -- not PSD;
+    * pivot == 0 (largest remaining diagonal): PSD iff the whole
+      remaining submatrix is identically zero (otherwise some 2x2
+      principal minor [[0, a], [a, d<=0]] with a != 0 is indefinite).
+
+    Integer entries grow only linearly in digit count (each is an
+    exact minor), unlike plain rational elimination.
     """
 
     size = len(matrix)
-    work = [row[:] for row in matrix]
+    if size == 0:
+        return True
+    from math import gcd
+
+    denominator_lcm = 1
+    for row in matrix:
+        for value in row:
+            d = value.denominator
+            if d != 1:
+                denominator_lcm = (
+                    denominator_lcm // gcd(denominator_lcm, d) * d
+                )
+    work = [
+        [int(value * denominator_lcm) for value in row] for row in matrix
+    ]
     active = list(range(size))
+    previous_pivot = 1
     while active:
-        pivot = max(active, key=lambda i: work[i][i])
-        if work[pivot][pivot] < 0:
+        pivot_index = max(active, key=lambda i: work[i][i])
+        pivot = work[pivot_index][pivot_index]
+        if pivot < 0:
             return False
-        if work[pivot][pivot] == 0:
-            for i in active:
-                for j in active:
-                    if work[i][j] != 0:
-                        return False
-            return True
-        d = work[pivot][pivot]
-        active.remove(pivot)
-        column = {i: work[i][pivot] for i in active if work[i][pivot]}
-        for i, ci in column.items():
-            for j, cj in column.items():
-                work[i][j] -= ci * cj / d
+        if pivot == 0:
+            # No positive diagonal left: PSD iff the remaining
+            # submatrix is identically zero (a nonzero off-diagonal
+            # with zero diagonals gives an indefinite 2x2 minor).
+            return all(
+                work[i][j] == 0 for i in active for j in active
+            )
+        active.remove(pivot_index)
+        prow = work[pivot_index]
+        for i in active:
+            row_i = work[i]
+            lip = row_i[pivot_index]
+            for j in active:
+                row_i[j] = (
+                    pivot * row_i[j] - lip * prow[j]
+                ) // previous_pivot
+        previous_pivot = pivot
     return True
 
 
@@ -208,7 +240,22 @@ def main() -> None:
     ]
     lam = [Fraction(v) for v in cert["lambda"]]
     c = Fraction(cert["certified_constant"])
+    provenance = cert.get("provenance", {})
+    cone = provenance.get("cone_id", "am")
+    target_bound = Fraction(
+        provenance.get("target_bound", "-2/100000000")
+    )
+    kkt_relation_count = int(cert.get("kkt_relation_count", 0))
     failures = 0
+    if cone == "kkt":
+        print(
+            "NOTE: KKT-inclusive certificate — the bound holds for "
+            "measures satisfying the first "
+            f"{kkt_relation_count} (gradient/potential) relation rows; "
+            "blocks marked kkt_only are used as valid at minimizers.  "
+            "This bounds the KKT-inclusive relaxation value, not yet "
+            "the all-measures functional."
+        )
 
     # ---- (a) exact PSD of every Y block
     print("[1/3] exact PSD of certificate blocks")
@@ -230,7 +277,14 @@ def main() -> None:
             ]
             for l, entries in block["label_matrices"].items()
         }
-        block_data.append((block["name"], size, matrices))
+        block_data.append(
+            (
+                block["name"],
+                size,
+                matrices,
+                bool(block.get("kkt_only", False)),
+            )
+        )
         if (index + 1) % 20 == 0:
             print(f"  {index + 1}/{len(cert['blocks'])} blocks PSD-checked "
                   f"({time.time() - t0:.0f}s)")
@@ -248,7 +302,7 @@ def main() -> None:
         else:
             rho.pop(label, None)
 
-    for (name, size, matrices), Y in zip(block_data, y_blocks):
+    for (name, size, matrices, _), Y in zip(block_data, y_blocks):
         for label, entries in matrices.items():
             acc = Fraction(0)
             for r, s, v in entries:
@@ -271,21 +325,30 @@ def main() -> None:
     if bound < claimed:
         print(f"  FAIL: recomputed bound below claimed {float(claimed):+.3e}")
         failures += 1
-    if bound < Fraction(-2, 10**8):
-        print("  FAIL: bound does not reach -2e-8")
+    if bound < target_bound:
+        print(f"  FAIL: bound does not reach {float(target_bound):+.1e}")
         failures += 1
     else:
-        print("  bound >= -2e-8: yes")
+        print(f"  bound >= {float(target_bound):+.1e}: yes")
 
     # ---- (c) semantic spot checks on exact rational measures
     if not args.skip_spot:
         print("[3/3] semantic spot checks on random rational measures")
         rng = random.Random(args.seed)
         all_labels = set(target)
-        for _, _, matrices in block_data:
+        for _, _, matrices, _ in block_data:
             all_labels.update(matrices)
         for row in relations:
             all_labels.update(row)
+        am_relations = relations[kkt_relation_count:]
+        am_blocks = [b for b in block_data if not b[3]]
+        if cone == "kkt":
+            print(
+                f"  (skipping semantic checks for the "
+                f"{kkt_relation_count} KKT relation rows and "
+                f"{len(block_data) - len(am_blocks)} KKT-only blocks: "
+                "they are not identities/PSD for generic measures)"
+            )
         for trial in range(args.spot_measures):
             natoms = 3
             atoms = rational_sphere_points(rng, natoms)
@@ -320,13 +383,13 @@ def main() -> None:
             if direct != paired:
                 print("  FAIL: target vector does not equal h2*E")
                 failures += 1
-            if paired < bound:
+            if cone == "am" and paired < bound:
                 print("  FAIL: bound violated by a spot measure (!)")
                 failures += 1
-            # relations vanish
+            # all-measures relations vanish
             bad = sum(
                 1
-                for row in relations
+                for row in am_relations
                 if sum(v * values.get(l, Fraction(0)) for l, v in row.items())
                 != 0
             )
@@ -334,10 +397,11 @@ def main() -> None:
                 print(f"  FAIL: {bad} relation rows nonzero on the measure")
                 failures += 1
             else:
-                print(f"  all {len(relations)} relation rows vanish: yes")
-            # blocks evaluate PSD
+                print(f"  all {len(am_relations)} all-measures relation "
+                      f"rows vanish: yes")
+            # all-measures blocks evaluate PSD
             bad = 0
-            for name, size, matrices in block_data:
+            for name, size, matrices, _ in am_blocks:
                 evaluated = [
                     [Fraction(0)] * size for _ in range(size)
                 ]
@@ -359,15 +423,22 @@ def main() -> None:
                     bad += 1
             failures += bad
             if not bad:
-                print(f"  all {len(block_data)} block families PSD on the "
-                      f"measure: yes")
+                print(f"  all {len(am_blocks)} all-measures block "
+                      f"families PSD on the measure: yes")
 
     print()
     if failures:
         print(f"FAIL ({failures} problem(s)) after {time.time() - t0:.0f}s")
         sys.exit(1)
-    print(f"PASS: h2*E >= {float(bound):+.10e} > -2e-8 for every "
-          f"antipodal probability measure on S^2  "
+    scope = (
+        "every antipodal probability measure on S^2"
+        if cone == "am"
+        else "the KKT-inclusive relaxation (measures satisfying the "
+             "encoded first-order relations; in particular every "
+             "minimizer of E)"
+    )
+    print(f"PASS: h2*E >= {float(bound):+.10e} "
+          f"(>= {float(target_bound):+.1e}) for {scope}  "
           f"({time.time() - t0:.0f}s)")
 
 

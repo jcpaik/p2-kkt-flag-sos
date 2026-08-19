@@ -128,7 +128,86 @@ exact rational antipodal atomic measures (`--spot-measures N`,
 default 2; `--skip-spot` for the fast algebraic-only run).  Exit code
 0 and a final `PASS` line constitute the verification.
 
-## 6. Honest caveats / upgrade path
+## 6. Second certificate: the degree-18 stack (KKT-inclusive cone)
+
+*2026-08-19, second run of the same pipeline on
+`deg18_h2w_h2all_toep3` ($m=2192$, 129 blocks, 3655 labels, 650
+relation rows, wall $-2.21142\times10^{-14}$, `pdOPT`).*
+
+**Theorem (certified).**  For every antipodal probability measure on
+$S^2$ **satisfying the encoded first-order (KKT) relations** of $E$
+(the 24 gradient/potential rows; in particular every minimizer of
+$E$):
+
+$$h_2(\mu)\,E(\mu)\;\ge\;-2.7454\times10^{-14}\;\ge\;-5\times10^{-14},$$
+
+equivalently an exact rational lower bound on the KKT-inclusive
+degree-18 relaxation value — **10× stronger than the requested
+$-1\times10^{-13}$ target**.  Artifacts:
+`certificates/h2E_geq_deg18.json.gz` (3.3 MB),
+`sdpa_runs/build_deg18_cert2.log`, checker as in §5 (the same
+`verify_h2E_bound.py` reads the cone metadata).
+
+**The KKT decision (measured).**  The certificate's gradient-row
+multipliers carry mass $\sim1.15\times10^{8}$ (potential
+$\sim2\times10^{3}$): the KKT *relations* are structurally
+load-bearing, and the rank-relation-only least squares leaves a
+residual of order $10^{10}$ — the **all-measures version of this
+certificate does not exist for this $Y$**; it would need a fresh
+GMP solve of the am-cone problem (the deg-16 am experience suggests
+a $\sim2$–$3\times$ weaker wall).  The 16 KKT PSD families
+(hessian/tangent-gap), by contrast, are essentially unused
+($1.9\times10^{-9}$ of the $Y$ mass) — the certificate is honest KKT
+through its relations, not its blocks.  The certificate marks every
+KKT-only row and block (`kkt_only`, `kkt_relation_count`), the
+checker skips them in the semantic measure-checks (they are not
+identities/PSD for generic measures) and states the KKT-scoped
+theorem in its PASS line.
+
+**Numbers.**  Exact $c=-2.1956\times10^{-14}$ (slightly above the
+solver wall); $\|\rho\|_1=5.498\times10^{-15}$ over 3629 labels — the
+deg-16 dropped-direction inflation did *not* recur (this export's
+kept directions cover the label space much more tightly);
+bound $=c-\|\rho\|_1=-2.745\times10^{-14}$.
+
+**Pipeline upgrade: exact iterative refinement.**  The deg-16 exact
+normal-equation Gauss ($338^2$, 5 min) does not scale ($650^2$ dense
+rational elimination ran >75 min unfinished).  Replacement
+(`sdpa_runs/solve_lambda_refine.py`): float64 solves of the normal
+equations with **exact rational residual accumulation** (classical
+iterative refinement, 12 digits/iteration here), then
+`limit_denominator(10^110)`.  Soundness is unaffected by how
+$\lambda$ is found: $\rho$ is recomputed exactly afterwards, so any
+rational $\lambda$ is admissible — the refinement only makes
+$\|\rho\|_1$ small.  Total $\lambda$ time: **14 s** (vs hours);
+whole certificate build: 22 s after the one-off yMat parse.
+
+**Checker upgrade.**  Exact PSD is now decided by *fraction-free*
+(Bareiss) elimination with symmetric max-diagonal pivoting on the
+integer-scaled matrix — pivots are principal minors up to positive
+factors, digit growth is linear, and the singular-PSD /
+indefinite cases are decided by the same zero-diagonal rule as
+before.  Validated against float eigenvalues on 196 randomized
+sign-definite matrices and 100 exact low-rank Grams.  The deg-16
+certificate re-verifies in 15 s (was 78 s); the deg-18 blocks
+(55×55, entries to $6.5\times10^{8}$, mixed $10^{-90}$ scales) pass
+in 100 s total.
+
+**Verification.**  PASS (`sdpa_runs/verify_deg18.log`, 139 s):
+
+```
+all 129 blocks PSD: yes
+c               = -2.1956494525e-14
+||rho||_1       = +5.498e-15  (3629 labels)
+certified bound = -2.7454450222e-14   (>= -5.0e-14: yes)
+all 626 all-measures relation rows vanish (both spot measures): yes
+all 113 all-measures block families PSD on the measures: yes
+PASS: h2*E >= -2.7454450222e-14 (>= -5.0e-14) for the KKT-inclusive
+relaxation (measures satisfying the encoded first-order relations;
+in particular every minimizer of E)
+```
+
+## 7. Honest caveats / upgrade path
 
 * The block matrices $A^b$ and relation rows $E_i$ are certificate
   *data*; their all-measures validity is by construction and is
