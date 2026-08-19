@@ -34,3 +34,15 @@ cone attains the sharp certificate at some finite degree.  The
 discriminating test is the trace law approaching this wall (selectors
 at 1e−5 … 1e−12): a plateau = attainment = the exactification
 pipeline closes the weighted conjecture.  Ladder launched.
+
+**Deg-18 stack trace law (2026-08-19, measured):** tr(1e−6) = 4860.95
+(pFEAS), tr(1e−9) = 43838.0 (pFEAS): 2.08×/decade, exponent 0.318 —
+**no attainment plateau**; the ~ε^−0.3 law persists at degree 18.
+Verdict: the (degree × families) cascade drives the wall to zero
+super-geometrically (−3.7e−6 → −5.3e−9 → −2.2e−14) but zero is a
+limit, not attained; the residual fractional-order (~ε^{−0.3})
+singularity is the surviving leak at every degree.  Endgame paths
+unchanged: (i) limit-certificate extraction across the deg-14/16/18
+certificate sequence; (ii) the e5-localized / multi-weight target
+attaining zero by construction; (iii) the am-cone deg-18 solve for the
+proof-carrying exact certificate at the ~1e−13 scale (staged, m=2216).
