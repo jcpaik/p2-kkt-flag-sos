@@ -207,7 +207,53 @@ relaxation (measures satisfying the encoded first-order relations;
 in particular every minimizer of E)
 ```
 
-## 7. Honest caveats / upgrade path
+## 7. Capstone: the degree-18 **all-measures** certificate
+
+*2026-08-20.  The cycle's capstone: the proof-carrying degree-18
+stack `deg18_am_toep3` ($m=2216$, 113 blocks, all-measures cone — no
+KKT content, 626 rank-relation rows only, composes with the reduction
+lemma; wall $-1.43334761688\times10^{-11}$, `pdOPT`, dual feasibility
+$4.1\times10^{-42}$).*
+
+**Theorem (certified, all measures).**  For every antipodally
+symmetric Borel probability measure $\mu$ on $S^2$:
+
+$$h_2(\mu)\,E(\mu)\;\ge\;-1.7355738\times10^{-11}\;\ge\;-2\times10^{-11}.$$
+
+This supersedes the degree-16 record ($-1.482\times10^{-8}$, §1–§5)
+by **854×** and tightens the requested $-3\times10^{-11}$ target by
+1.5×.  Artifacts: `certificates/h2E_geq_deg18_am.json.gz` (3.3 MB),
+`sdpa_runs/build_deg18_am_cert.log`, `sdpa_runs/verify_deg18_am.log`.
+
+**Numbers.**  Exact $c=-1.4232\times10^{-11}$;
+$\|\rho\|_1=3.124\times10^{-12}$ over 3626 labels (the
+dropped-direction residue is present at this export, as at deg-16,
+but sits comfortably inside the $1.6\times10^{-11}$ margin); bound
+$=c-\|\rho\|_1=-1.7356\times10^{-11}$.  Pipeline runtime with the
+upgraded tooling: $\lambda$ refinement **6 s** (8 iterations, 14
+digits/iteration), certificate build **11 s**, verification transcript
+below — the entire exactification is now a sub-minute operation per
+solved stack (plus the checker run).
+
+**Verification.**  PASS (`python3 verify_h2E_bound.py
+certificates/h2E_geq_deg18_am.json.gz`, 83 s):
+
+```
+all 113 blocks PSD: yes
+c               = -1.4231737489e-11
+||rho||_1       = +3.124e-12  (3626 labels)
+certified bound = -1.7355738043e-11   (>= -2.0e-11: yes)
+all 626 all-measures relation rows vanish (both spot measures): yes
+all 113 all-measures block families PSD on the measures: yes
+PASS: h2*E >= -1.7355738043e-11 (>= -2.0e-11) for every antipodal
+probability measure on S^2
+```
+
+**Composition.**  As in §3: the cone is all-measures, so the reduction
+lemma applies verbatim — this is an unconditional theorem about
+measures, the strongest exact statement of the program to date.
+
+## 8. Honest caveats / upgrade path
 
 * The block matrices $A^b$ and relation rows $E_i$ are certificate
   *data*; their all-measures validity is by construction and is
