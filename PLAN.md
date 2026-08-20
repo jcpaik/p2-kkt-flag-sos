@@ -266,10 +266,8 @@ Decision order:
 - [ ] **The pole survived $h_2$ (measured): the primary route is now the
       spin-2 operator gap.**  The projected-dual escape ray is a *pure
       $g_4$ direction* ($g_4\cdot\text{ray}=5.35$, all other $g_\ell$ and
-      $E[\det\mathrm{Gram}_3]$ pairings $=0$; $E$ pays $-\tfrac{384}{385}$
-      per unit of $g_4$ — its $\ell=4$ Legendre coefficient — and
-      $-\tfrac{384}{385}\times5.35=-5.34=\tfrac{16}{3}\times(-1.00)$
-      reproduces the stored ray's legacy target-pairing normalization) — the $\hat K_4<0$ mode is the
+      $E[\det\mathrm{Gram}_3]$ pairings $=0$; $-\frac{72}{385}\times5.35=-1.000$
+      reproduces the normalization exactly) — the $\hat K_4<0$ mode is the
       whole escape.  The constraint that kills it while staying
       sharpness-compatible is the SO(3) operator bound of
       [Structure](docs/FOUNDATIONS.md) §4: $I-A_2\succeq0$ with
@@ -396,7 +394,7 @@ along the leak, i.e. $h_2=(3p_2-1)/2$.
       | none (products only via `empty_type_flag`) | 398 | $-2.0839555\times10^{-3}$ |
       | + `--h2-localized-flags` (one-root $h_2\times$flag) | 414 | $-1.2031830\times10^{-3}$ |
       | + $p_2\times$(all families) | 790 | $-2.0839555\times10^{-3}$ (identical to none) |
-
+      
       Unweighted baseline $-4.4856\times10^{-3}$.  Lesson: pure
       $p_2$-multiplied PSD blocks touch only fresh product labels and are
       **vacuous** for the dual bound; localized blocks must carry the

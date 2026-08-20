@@ -341,6 +341,396 @@ def multiply_label_vectors(
     return product
 
 
+def multiply_label_matrix_vector(
+    weight: dict[Label, Fraction],
+    matrices: dict[Label, np.ndarray],
+) -> dict[Label, np.ndarray]:
+    """Multiply a scalar moment functional into a label-matrix block."""
+
+    product: dict[Label, np.ndarray] = {}
+    for weight_label, weight_coefficient in weight.items():
+        for matrix_label, matrix in matrices.items():
+            label = multiply_labels(weight_label, matrix_label)
+            term = float(weight_coefficient) * matrix
+            if label in product:
+                product[label] = product[label] + term
+            else:
+                product[label] = term
+    return {
+        label: matrix
+        for label, matrix in product.items()
+        if np.max(np.abs(matrix)) > 1e-13
+    }
+
+
+def multiply_float_label_vectors(
+    weight: dict[Label, Fraction],
+    vector: dict[Label, float],
+) -> dict[Label, float]:
+    """Multiply an exact scalar weight into a floating label relation."""
+
+    product: dict[Label, float] = {}
+    for weight_label, weight_coefficient in weight.items():
+        for vector_label, coefficient in vector.items():
+            label = multiply_labels(weight_label, vector_label)
+            product[label] = product.get(label, 0.0) + float(
+                weight_coefficient
+            ) * coefficient
+    return {
+        label: coefficient
+        for label, coefficient in product.items()
+        if abs(coefficient) > 1e-13
+    }
+
+
+def coupled_quadrupole_trace_vectors() -> tuple[
+    dict[Label, Fraction],
+    dict[Label, Fraction],
+    dict[Label, Fraction],
+]:
+    """Exact entries of the traced quadratic mass/transport Hessian.
+
+    At a stationary local minimizer, take an orthonormal basis ``S_a`` of
+    traceless symmetric 3-by-3 matrices. Reweight by the centered density
+
+        f_a(x) = x^T S_a x - int y^T S_a y dmu(y)
+
+    and move every support point with velocity
+
+        V_a(x) = (I - x x^T) S_a x.
+
+    Summing the half second variation over ``a`` gives the positive
+    semidefinite two-by-two matrix ``[[A, B], [B, C]]``. The entries below
+    use only pair moments because weight and positional stationarity remove
+    the centering terms. In particular,
+
+        A + 12 B + 36 C
+          = -4 (9 E p2 + 66 p2 - 80 p4 - 10),
+
+    the degree-eight-cancelling alpha=6 scalar cut.
+    """
+
+    positional = {
+        ("constant",): Fraction(40),
+        ("pair", 2): Fraction(-696),
+        ("pair", 4): Fraction(2384),
+        ("pair", 6): Fraction(-2880),
+        ("pair", 8): Fraction(1152),
+    }
+    cross = {
+        ("pair", 2): Fraction(40),
+        ("pair", 4): Fraction(-232),
+        ("pair", 6): Fraction(384),
+        ("pair", 8): Fraction(-192),
+    }
+    mass = {
+        ("constant",): Fraction(4, 9),
+        ("pair", 2): Fraction(-8),
+        ("pair", 4): Fraction(36),
+        ("pair", 6): Fraction(-176, 3),
+        ("pair", 8): Fraction(32),
+    }
+    energy = {
+        ("constant",): Fraction(-4, 3),
+        ("pair", 2): Fraction(20),
+        ("pair", 4): Fraction(-48),
+        ("pair", 6): Fraction(32),
+    }
+    p2_minus_third = {
+        ("constant",): Fraction(-1, 3),
+        ("pair", 2): Fraction(1),
+    }
+    for label, coefficient in multiply_label_vectors(
+        energy, p2_minus_third
+    ).items():
+        updated = mass.get(label, Fraction(0)) - coefficient
+        if updated:
+            mass[label] = updated
+        else:
+            mass.pop(label, None)
+    return positional, cross, mass
+
+
+def coupled_quadrupole_trace_matrix() -> dict[Label, np.ndarray]:
+    """Floating label matrices for :func:`coupled_quadrupole_trace_vectors`."""
+
+    positional, cross, mass = coupled_quadrupole_trace_vectors()
+    matrices: dict[Label, np.ndarray] = {}
+    for vector, row, column in (
+        (positional, 0, 0),
+        (cross, 0, 1),
+        (mass, 1, 1),
+    ):
+        for label, coefficient in vector.items():
+            matrix = matrices.setdefault(label, np.zeros((2, 2)))
+            matrix[row, column] += float(coefficient)
+            if row != column:
+                matrix[column, row] += float(coefficient)
+    return matrices
+
+
+def coupled_quadrupole_alpha_six_vector() -> dict[Label, Fraction]:
+    """Exact ``[1, 6]`` compression of the coupled trace block."""
+
+    positional, cross, mass = coupled_quadrupole_trace_vectors()
+    vector = dict(positional)
+    for source, scale in ((cross, 12), (mass, 36)):
+        for label, coefficient in source.items():
+            updated = vector.get(label, Fraction(0)) + scale * coefficient
+            if updated:
+                vector[label] = updated
+            else:
+                vector.pop(label, None)
+    return vector
+
+
+@lru_cache(maxsize=None)
+def rooted_radial_trace_entry_vector(
+    left_degree: int, right_degree: int
+) -> dict[Label, Fraction]:
+    """One exact entry of the spin-traced rooted radial Hessian."""
+
+    if min(left_degree, right_degree) <= 0 or (
+        left_degree % 2 == 0 or right_degree % 2 == 0
+    ):
+        raise ValueError("rooted radial degrees must be positive and odd")
+
+    # Gram variables: a=Y.Z, b=Z.X, c=X.Y.
+    a, b, c = sp.symbols("a b c")
+    kernel_prime = 192 * a**5 - 192 * a**3 + 40 * a
+    kernel_second = 960 * a**4 - 576 * a**2 + 40
+    spin_two_kernel = 2 * (a - b * c) ** 2 - (1 - b**2) * (1 - c**2)
+    local = (1 - c**2) ** 2 * (
+        kernel_second * (b - a * c) ** 2
+        - a * kernel_prime * (1 - c**2)
+    )
+    cross = spin_two_kernel * (
+        kernel_second * (b - a * c) * (c - a * b)
+        + kernel_prime * (1 - b**2 - c**2 + a * b * c)
+    )
+    radial = c ** (left_degree + right_degree) * local
+    radial += Fraction(1, 2) * (
+        c**left_degree * b**right_degree
+        + c**right_degree * b**left_degree
+    ) * cross
+    polynomial = sp.Poly(sp.expand(radial), a, b, c)
+
+    vector: dict[Label, Fraction] = {}
+    for exponent, coefficient in polynomial.terms():
+        label, reduction = expectation_label(
+            tuple(int(value) for value in exponent)
+        )
+        if label is None or not reduction:
+            continue
+        exact_coefficient = Fraction(
+            int(sp.numer(coefficient)), int(sp.denom(coefficient))
+        )
+        vector[label] = (
+            vector.get(label, Fraction(0)) + exact_coefficient * reduction
+        )
+    return {label: coefficient for label, coefficient in vector.items() if coefficient}
+
+
+@lru_cache(maxsize=None)
+def rooted_radial_r1_reduced_vector() -> dict[Label, Fraction]:
+    """Exact rooted collective-transport cut in the lowest spin-2 radial.
+
+    Let ``X`` be a support root, choose a tangent frame ``(u,v)`` at X, and
+    put, for ``c=X.Y``,
+
+        g_1(Y)=(u.Y)^2-(v.Y)^2,  g_2(Y)=2(u.Y)(v.Y),
+        V_j(Y)=c g_j(Y) P_{Y^perp}X.
+
+    The sum over ``j=1,2`` of the collective positional half-Hessians is
+    nonnegative at every minimizing measure and is independent of the chosen
+    frame. Averaging the support root gives the triangle-label vector below.
+
+    Its raw degree-14 expansion contains ``+1152 tau_446``. We add the valid
+    all-measure localizer ``1152(tau_444-tau_446)`` so that this otherwise
+    uncovered top moment cancels. The resulting cut stays nonnegative and
+    lies entirely in the existing degree-14 label span.
+    """
+
+    vector = dict(rooted_radial_trace_entry_vector(1, 1))
+
+    tau_444 = ("triangle", 4, 4, 4)
+    tau_446 = ("triangle", 4, 4, 6)
+    vector[tau_444] = vector.get(tau_444, Fraction(0)) + 1152
+    vector[tau_446] = vector.get(tau_446, Fraction(0)) - 1152
+    if not vector[tau_446]:
+        vector.pop(tau_446)
+    return {
+        label: coefficient
+        for label, coefficient in vector.items()
+        if coefficient
+    }
+
+
+@lru_cache(maxsize=None)
+def rooted_radial_r13_reduced_vector() -> dict[Label, Fraction]:
+    """Covered scalar compression of the rooted radial degrees (1, 3).
+
+    The compression vector is ``(-31, 12)``. Four nonnegative Gram/minor
+    localizers cancel every top moment absent from the degree-16 hierarchy;
+    the ratio ``-31/12`` is exactly what cancels the final ``tau_466`` term.
+    """
+
+    left, right = Fraction(-31), Fraction(12)
+    vector: dict[Label, Fraction] = {}
+
+    def add_vector(source: dict[Label, Fraction], scale: Fraction) -> None:
+        for label, coefficient in source.items():
+            updated = vector.get(label, Fraction(0)) + scale * coefficient
+            if updated:
+                vector[label] = updated
+            else:
+                vector.pop(label, None)
+
+    add_vector(rooted_radial_trace_entry_vector(1, 1), left**2)
+    add_vector(rooted_radial_trace_entry_vector(1, 3), 2 * left * right)
+    add_vector(rooted_radial_trace_entry_vector(3, 3), right**2)
+
+    # 3456*12^2 * E[a^4 b^4 c^6 det Gram] >= 0.
+    add_vector(
+        {
+            ("triangle", 4, 4, 6): Fraction(1),
+            ("triangle", 5, 5, 7): Fraction(2),
+            ("triangle", 4, 6, 6): Fraction(-2),
+            ("triangle", 4, 4, 8): Fraction(-1),
+        },
+        3456 * right**2,
+    )
+    # 960*12^2 * E[b^4 c^10 det Gram] >= 0.
+    add_vector(
+        {
+            ("triangle", 0, 4, 10): Fraction(1),
+            ("triangle", 1, 5, 11): Fraction(2),
+            ("triangle", 2, 4, 10): Fraction(-1),
+            ("triangle", 0, 6, 10): Fraction(-1),
+            ("triangle", 0, 4, 12): Fraction(-1),
+        },
+        960 * right**2,
+    )
+    # Even-monomial principal-minor localizers.
+    add_vector(
+        {
+            ("triangle", 4, 6, 6): Fraction(1),
+            ("triangle", 6, 6, 6): Fraction(-1),
+        },
+        1152 * right**2,
+    )
+    add_vector(
+        {
+            ("triangle", 0, 6, 10): Fraction(1),
+            ("triangle", 0, 6, 12): Fraction(-1),
+        },
+        1152 * right**2,
+    )
+    return vector
+
+
+def root_determinant_weight_vector() -> dict[Label, Fraction]:
+    """Exact label expansion of the sharp three-sample weight ``F``.
+
+    For three independent samples, put ``a=X.Y``, ``b=X.Z``, ``c=Y.Z``
+    and ``D=det Gram(X,Y,Z)``.  The weight is
+
+        F(mu) = 8 E[a^2 b^2 (c-ab)^2 D].
+
+    It is nonnegative pointwise because ``D >= 0`` for every realizable
+    three-vector Gram matrix.  Its strict-positivity locus is weak-* dense,
+    while it vanishes on the full pole--equator equality family.  Keeping
+    the expansion here exact avoids routing a proposed weighted certificate
+    through floating-point polynomial conversion.
+    """
+
+    a, b, c = sp.symbols("a b c")
+    determinant = 1 + 2 * a * b * c - a**2 - b**2 - c**2
+    polynomial = sp.Poly(
+        sp.expand(8 * a**2 * b**2 * (c - a * b) ** 2 * determinant),
+        a,
+        b,
+        c,
+    )
+    vector: dict[Label, Fraction] = {}
+    for exponent, coefficient in polynomial.terms():
+        label, reduction = expectation_label(
+            tuple(int(value) for value in exponent)
+        )
+        if label is None or not reduction:
+            continue
+        value = Fraction(int(coefficient)) * reduction
+        updated = vector.get(label, Fraction(0)) + value
+        if updated:
+            vector[label] = updated
+        else:
+            vector.pop(label, None)
+    return vector
+
+
+def projected_circle_weight_vector() -> dict[Label, Fraction]:
+    """Exact four-sample expansion of the projected-circle residual ``A4``.
+
+    For ordered roots ``x_0,x_1`` and auxiliary samples ``x_2,x_3``, write
+    the six Gram entries in edge order ``01,02,03,12,13,23`` as
+    ``a,u,r,v,t,c``.  Clearing the projector denominators gives
+
+        U = u^2 + v^2 - 2 a u v,
+        V = r^2 + t^2 - 2 a r t,
+        L = u r + v t - a (u t + v r),
+
+    and the nonnegative averaged great-circle Fourier residual is
+
+        A4 = E[a^4 (32 L^6 - 48 L^4 U V
+                    + 20 L^2 (U V)^2 - 2 (U V)^3)].
+
+    Pointwise the displayed polynomial need not be nonnegative; its
+    expectation is nonnegative because it is exactly the weighted sum of
+    squared second and sixth Fourier coefficients of the projection of the
+    measure to ``span(x_0,x_1)``.
+    """
+
+    a, u, r, v, t, c = sp.symbols("a u r v t c")
+    upper = u**2 + v**2 - 2 * a * u * v
+    lower = r**2 + t**2 - 2 * a * r * t
+    pairing = u * r + v * t - a * (u * t + v * r)
+    product = upper * lower
+    polynomial = sp.Poly(
+        sp.expand(
+            a**4
+            * (
+                32 * pairing**6
+                - 48 * pairing**4 * product
+                + 20 * pairing**2 * product**2
+                - 2 * product**3
+            )
+        ),
+        a,
+        u,
+        r,
+        v,
+        t,
+        c,
+    )
+    vector: dict[Label, Fraction] = {}
+    for exponent, coefficient in polynomial.terms():
+        label, reduction = graph_expectation_label(
+            4, tuple(int(value) for value in exponent)
+        )
+        if label is None or not reduction:
+            continue
+        rational_coefficient = sp.Rational(coefficient)
+        value = Fraction(
+            int(rational_coefficient.p), int(rational_coefficient.q)
+        ) * reduction
+        updated = vector.get(label, Fraction(0)) + value
+        if updated:
+            vector[label] = updated
+        else:
+            vector.pop(label, None)
+    return vector
+
+
 @lru_cache(maxsize=None)
 def rho_word_trace_terms(word_length: int) -> tuple[
     tuple[Fraction, GraphExponent], ...
@@ -2581,6 +2971,26 @@ def export_sdpa_problem(
 
 
 def solve(args: argparse.Namespace) -> dict[str, object]:
+    selected_special_targets = sum(
+        bool(value)
+        for value in (
+            args.h2_weighted_target,
+            args.f_sharp_target,
+            args.f_weighted_target,
+            args.anisotropy_strengthened_target,
+            args.j_minus_108f_target,
+            args.j_circle_target,
+        )
+    )
+    if selected_special_targets > 1:
+        raise SystemExit(
+            "Choose at most one of --h2-weighted-target, --f-sharp-target, "
+            "--f-weighted-target, --anisotropy-strengthened-target, and "
+            "--j-minus-108f-target, and --j-circle-target"
+        )
+    if args.f_localized_all and not args.f_weighted_target:
+        raise SystemExit("--f-localized-all requires --f-weighted-target")
+
     # E = iint K(x.y) dmu dmu = -4/3 + 20 p2 - 48 p4 + 32 p6, with no
     # isotropy substitution: p2 = E[(X.Y)^2] stays a genuine moment
     # variable.
@@ -2591,6 +3001,81 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         ("pair", 6): Fraction(32),
     }
     exact_target = dict(energy_vector)
+    if args.anisotropy_strengthened_target:
+        # The sharp-face-compatible strengthening, scaled integrally:
+        #
+        #     J = (9/2) (E - (4/9) h2)
+        #       = 144 p6 - 216 p4 + 87 p2 - 5,
+        #     h2 = (3 p2 - 1)/2.
+        #
+        # This experimental target audits a possible quantitative isotropy
+        # bridge without contaminating exact face checks by binary fractions.
+        exact_target = {
+            ("constant",): Fraction(-5),
+            ("pair", 2): Fraction(87),
+            ("pair", 4): Fraction(-216),
+            ("pair", 6): Fraction(144),
+        }
+    if args.j_minus_108f_target:
+        # Combined sharp target
+        #
+        #   J - 108 F = (9/2)(E - (4/9)h2 - 24F).
+        #
+        # Both J and F vanish on the ONB and pole--equator equality faces;
+        # the coefficient 108 is forced by the sharp one-atom split mode.
+        exact_target = {
+            ("constant",): Fraction(-5),
+            ("pair", 2): Fraction(87),
+            ("pair", 4): Fraction(-216),
+            ("pair", 6): Fraction(144),
+        }
+        for label, coefficient in root_determinant_weight_vector().items():
+            updated = exact_target.get(label, Fraction(0)) - 108 * coefficient
+            if updated:
+                exact_target[label] = updated
+            else:
+                exact_target.pop(label, None)
+    if args.j_circle_target:
+        # Four-sample projected-circle strengthening
+        #
+        #   J - 108 F - 288 A4,
+        #
+        # where A4 is the exact nonnegative projected-circle Fourier
+        # residual returned by ``projected_circle_weight_vector``.
+        exact_target = {
+            ("constant",): Fraction(-5),
+            ("pair", 2): Fraction(87),
+            ("pair", 4): Fraction(-216),
+            ("pair", 6): Fraction(144),
+        }
+        for source, scale in (
+            (root_determinant_weight_vector(), Fraction(-108)),
+            (projected_circle_weight_vector(), Fraction(-288)),
+        ):
+            for label, coefficient in source.items():
+                updated = exact_target.get(label, Fraction(0)) + scale * coefficient
+                if updated:
+                    exact_target[label] = updated
+                else:
+                    exact_target.pop(label, None)
+    if args.f_sharp_target:
+        # Strong sharp target E - 24 F.  Since F >= 0 pointwise, a
+        # certificate for this target proves E >= 0 directly.  The factor
+        # 24 is forced by the quadratic split mode off the pole--equator
+        # equality face.
+        for label, coefficient in root_determinant_weight_vector().items():
+            updated = exact_target.get(label, Fraction(0)) - 24 * coefficient
+            if updated:
+                exact_target[label] = updated
+            else:
+                exact_target.pop(label, None)
+    if args.f_weighted_target:
+        # F is nonnegative and positive on a weak-* dense set, so F*E >= 0
+        # implies E >= 0 by continuity.  Disconnected labels represent the
+        # independent samples in the product exactly.
+        exact_target = multiply_label_vectors(
+            root_determinant_weight_vector(), energy_vector
+        )
     if args.h2_weighted_target:
         # Rational-certificate target h2*E with h2 = (3 p2 - 1)/2 >= 0.
         # Anisotropic measures (h2 > 0) are dense and E is continuous, so
@@ -3658,6 +4143,100 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                         )
                         constraints.append(variable >> 0)
 
+    if args.collective_transport:
+        # Full positional second variation: unlike the rooted support
+        # Hessian, this includes cross terms from moving two support points
+        # coherently.  Imported lazily to avoid a module-level cycle because
+        # collective_transport reuses the graph-label reducer above.
+        from collective_transport import (
+            collective_transport_degrees,
+            collective_transport_expectation_matrix,
+        )
+
+        transport_degrees = collective_transport_degrees(args.degree)
+        if transport_degrees:
+            label_matrices = collective_transport_expectation_matrix(
+                transport_degrees
+            )
+            if label_matrices:
+                size = len(transport_degrees)
+                variable = cp.Variable(
+                    (size, size),
+                    symmetric=True,
+                    name="collective_transport_hessian",
+                )
+                blocks.append(
+                    (
+                        "collective_transport_hessian",
+                        variable,
+                        label_matrices,
+                    )
+                )
+                constraints.append(variable >> 0)
+
+    if args.shared_auxiliary_transport:
+        from shared_auxiliary_transport import (
+            shared_auxiliary_transport_degrees,
+            shared_auxiliary_transport_expectation_matrix,
+        )
+
+        auxiliary_degrees = shared_auxiliary_transport_degrees(args.degree)
+        if auxiliary_degrees:
+            label_matrices = shared_auxiliary_transport_expectation_matrix(
+                auxiliary_degrees
+            )
+            if label_matrices:
+                size = len(auxiliary_degrees)
+                variable = cp.Variable(
+                    (size, size),
+                    symmetric=True,
+                    name="shared_auxiliary_transport_hessian",
+                )
+                blocks.append(
+                    (
+                        "shared_auxiliary_transport_hessian",
+                        variable,
+                        label_matrices,
+                    )
+                )
+                constraints.append(variable >> 0)
+
+    if args.coupled_quadrupole_trace:
+        if args.degree < 8:
+            raise SystemExit(
+                "--coupled-quadrupole-trace requires --degree at least 8"
+            )
+        label_matrices = coupled_quadrupole_trace_matrix()
+        variable = cp.Variable(
+            (2, 2), symmetric=True, name="coupled_quadrupole_trace"
+        )
+        blocks.append(
+            ("coupled_quadrupole_trace", variable, label_matrices)
+        )
+        constraints.append(variable >> 0)
+
+    if args.coupled_quadrupole_alpha6:
+        if args.degree < 8:
+            raise SystemExit(
+                "--coupled-quadrupole-alpha6 requires --degree at least 8"
+            )
+        variable = cp.Variable(
+            (1, 1), symmetric=True, name="coupled_quadrupole_alpha6"
+        )
+        blocks.append(
+            (
+                "coupled_quadrupole_alpha6",
+                variable,
+                {
+                    label: np.array([[float(coefficient)]])
+                    for label, coefficient in (
+                        coupled_quadrupole_alpha_six_vector().items()
+                    )
+                },
+            )
+        )
+        constraints.append(variable >> 0)
+
     if args.jacobi_scale_blocks:
         # Exact congruence rescaling A_L -> D A_L D with diagonal D chosen
         # from the largest diagonal coefficient per basis element.  This
@@ -3835,6 +4414,143 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
         ]
         rank_relations = rank_relations + [
             (10000 + index, p2_shift_relation(relation))
+            for index, relation in rank_relations
+        ]
+        gradient_coefficients = (
+            cp.Variable(len(gradient_relations), name="gradient_coefficients")
+            if gradient_relations
+            else None
+        )
+        potential_coefficients = (
+            cp.Variable(
+                len(potential_relations), name="potential_coefficients"
+            )
+            if potential_relations
+            else None
+        )
+        rank_coefficients = (
+            cp.Variable(len(rank_relations), name="rank_coefficients")
+            if rank_relations
+            else None
+        )
+
+    if args.h2_rooted_radial_r1_cut:
+        if not args.h2_weighted_target:
+            raise SystemExit(
+                "--h2-rooted-radial-r1-cut requires --h2-weighted-target"
+            )
+        h2_weight = {
+            ("constant",): Fraction(-1, 2),
+            ("pair", 2): Fraction(3, 2),
+        }
+        localized_cut = multiply_label_vectors(
+            h2_weight, rooted_radial_r1_reduced_vector()
+        )
+        variable = cp.Variable(
+            (1, 1), symmetric=True, name="h2_rooted_radial_r1_cut"
+        )
+        blocks.append(
+            (
+                "h2_rooted_radial_r1_cut",
+                variable,
+                {
+                    # Positive scalar normalization leaves the generated
+                    # cone unchanged and keeps exact SDPA exports well
+                    # conditioned (the unscaled maximum is 18720).
+                    label: np.array([[float(coefficient / 1152)]])
+                    for label, coefficient in localized_cut.items()
+                },
+            )
+        )
+        constraints.append(variable >> 0)
+
+    if args.h2_rooted_radial_r13_cut:
+        if not args.h2_weighted_target:
+            raise SystemExit(
+                "--h2-rooted-radial-r13-cut requires --h2-weighted-target"
+            )
+        h2_weight = {
+            ("constant",): Fraction(-1, 2),
+            ("pair", 2): Fraction(3, 2),
+        }
+        localized_cut = multiply_label_vectors(
+            h2_weight, rooted_radial_r13_reduced_vector()
+        )
+        variable = cp.Variable(
+            (1, 1), symmetric=True, name="h2_rooted_radial_r13_cut"
+        )
+        blocks.append(
+            (
+                "h2_rooted_radial_r13_cut",
+                variable,
+                {
+                    # 165888 = 1152*12^2 is the natural common scale of
+                    # the two principal-minor correction terms.
+                    label: np.array([[float(coefficient / 165888)]])
+                    for label, coefficient in localized_cut.items()
+                },
+            )
+        )
+        constraints.append(variable >> 0)
+
+    if args.f_localized_all:
+        # Full quadratic module localized by the nonnegative three-sample
+        # weight F.  The weight samples are independent of those in the base
+        # block/relation, so disconnected moment labels multiply exactly.
+        # Matrix equalities are localized as free blocks as well as the
+        # scalar KKT/rank identities.
+        f_weight = root_determinant_weight_vector()
+        original_blocks = list(blocks)
+        original_free_blocks = list(free_blocks)
+        for name, _, label_matrices in original_blocks:
+            if not label_matrices:
+                continue
+            size = next(iter(label_matrices.values())).shape[0]
+            variable = cp.Variable(
+                (size, size), symmetric=True, name=f"floc_{name}"
+            )
+            blocks.append(
+                (
+                    f"floc_{name}",
+                    variable,
+                    multiply_label_matrix_vector(f_weight, label_matrices),
+                )
+            )
+            constraints.append(variable >> 0)
+        for name, _, label_matrices in original_free_blocks:
+            if not label_matrices:
+                continue
+            size = next(iter(label_matrices.values())).shape[0]
+            variable = cp.Variable(
+                (size, size), symmetric=True, name=f"floc_{name}"
+            )
+            free_blocks.append(
+                (
+                    f"floc_{name}",
+                    variable,
+                    multiply_label_matrix_vector(f_weight, label_matrices),
+                )
+            )
+
+        gradient_relations = gradient_relations + [
+            (
+                20000 + index,
+                multiply_float_label_vectors(f_weight, relation),
+            )
+            for index, relation in gradient_relations
+        ]
+        potential_relations = potential_relations + [
+            (
+                20000 + index,
+                multiply_float_label_vectors(f_weight, relation),
+            )
+            for index, relation in potential_relations
+        ]
+        rank_relations = rank_relations + [
+            (
+                20000 + index,
+                multiply_float_label_vectors(f_weight, relation),
+            )
             for index, relation in rank_relations
         ]
         gradient_coefficients = (
@@ -4570,6 +5286,15 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
                 relation_residuals,
                 default=0.0,
             )
+            if args.output:
+                np.savez(
+                    Path(args.output),
+                    moments=moments.value,
+                    labels=np.array(
+                        [repr(label) for label in ordered_labels],
+                        dtype=str,
+                    ),
+                )
         return {
             "status": dual_problem.status,
             "objective": None if dual_value is None else float(dual_value),
@@ -4581,6 +5306,7 @@ def solve(args: argparse.Namespace) -> dict[str, object]:
             "maximum_free_residual": maximum_free_residual,
             "maximum_relation_residual": maximum_relation_residual,
             "moments": {} if args.summary_only else moment_values,
+            "output": args.output,
         }
 
     bounded_labels = [
@@ -4897,6 +5623,46 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--higher-rank-matrices", action="store_true")
     parser.add_argument("--harmonics", action="store_true")
     parser.add_argument("--four-point-hessian", action="store_true")
+    parser.add_argument("--collective-transport", action="store_true")
+    parser.add_argument("--shared-auxiliary-transport", action="store_true")
+    parser.add_argument(
+        "--coupled-quadrupole-trace",
+        action="store_true",
+        help=(
+            "add the exact 2x2 trace of the coupled quadratic reweighting "
+            "and S-gradient positional Hessian at a stationary minimizer; "
+            "its [1,6] scalar compression cancels the pair-eight term"
+        ),
+    )
+    parser.add_argument(
+        "--coupled-quadrupole-alpha6",
+        action="store_true",
+        help=(
+            "add only the exact alpha=6 scalar compression of the coupled "
+            "quadrupole trace Hessian; with --h2-localized-all its h2 "
+            "multiple is added automatically"
+        ),
+    )
+    parser.add_argument(
+        "--h2-rooted-radial-r1-cut",
+        action="store_true",
+        help=(
+            "add the sharp-compatible h2 multiple of the exact lowest "
+            "rooted spin-2 collective-transport trace, with its sole "
+            "uncovered degree-14 moment cancelled by a positive localizer; "
+            "requires --h2-weighted-target"
+        ),
+    )
+    parser.add_argument(
+        "--h2-rooted-radial-r13-cut",
+        action="store_true",
+        help=(
+            "add the h2-localized exact (-31,12) compression of rooted "
+            "radial degrees (1,3), with every uncovered top moment "
+            "cancelled by nonnegative Gram/minor localizers; requires "
+            "--h2-weighted-target"
+        ),
+    )
     parser.add_argument("--max-hessian-arity", type=int, default=0)
     parser.add_argument("--potential", action="store_true")
     parser.add_argument("--potential-matrices", action="store_true")
@@ -4926,6 +5692,56 @@ def parse_args() -> argparse.Namespace:
             "replace the target E by h2*E with h2 = (3 p2 - 1)/2; a "
             "certificate for h2*E >= 0 proves E >= 0 by density of "
             "anisotropic measures"
+        ),
+    )
+    parser.add_argument(
+        "--anisotropy-strengthened-target",
+        action="store_true",
+        help=(
+            "replace E by the experimental sharp-face strengthening "
+            "E-(4/9)h2, equivalently the pair kernel "
+            "144t^6-216t^4+87t^2-5 up to a positive factor"
+        ),
+    )
+    parser.add_argument(
+        "--j-minus-108f-target",
+        action="store_true",
+        help=(
+            "replace E by J-108F, where "
+            "J=144p6-216p4+87p2-5 and F is the nonnegative "
+            "three-sample root-determinant functional"
+        ),
+    )
+    parser.add_argument(
+        "--j-circle-target",
+        action="store_true",
+        help=(
+            "replace E by J-108F-288A4, where A4 is the nonnegative "
+            "four-sample projected-circle Fourier residual"
+        ),
+    )
+    parser.add_argument(
+        "--f-sharp-target",
+        action="store_true",
+        help=(
+            "replace the target E by the stronger sharp target E-24F, "
+            "where F=8 E[a^2 b^2(c-ab)^2 det Gram(X,Y,Z)] >= 0"
+        ),
+    )
+    parser.add_argument(
+        "--f-weighted-target",
+        action="store_true",
+        help=(
+            "replace the target E by F*E for the nonnegative, dense-positive "
+            "three-sample root-determinant weight F"
+        ),
+    )
+    parser.add_argument(
+        "--f-localized-all",
+        action="store_true",
+        help=(
+            "add F-multiplied copies of every PSD block and every scalar "
+            "or matrix equality family; requires --f-weighted-target"
         ),
     )
     parser.add_argument("--output")

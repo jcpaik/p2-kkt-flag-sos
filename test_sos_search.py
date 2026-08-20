@@ -672,6 +672,65 @@ def test_exact_harmonic_pair_vector():
     }
 
 
+def test_coupled_quadrupole_trace_alpha_six_identity():
+    positional, cross, mass = search.coupled_quadrupole_trace_vectors()
+    alpha_six = dict(positional)
+    for vector, scale in ((cross, 12), (mass, 36)):
+        for label, coefficient in vector.items():
+            updated = alpha_six.get(label, Fraction(0)) + scale * coefficient
+            if updated:
+                alpha_six[label] = updated
+            else:
+                alpha_six.pop(label, None)
+
+    energy = {
+        ("constant",): Fraction(-4, 3),
+        ("pair", 2): Fraction(20),
+        ("pair", 4): Fraction(-48),
+        ("pair", 6): Fraction(32),
+    }
+    expected = {
+        ("constant",): Fraction(40),
+        ("pair", 2): Fraction(-264),
+        ("pair", 4): Fraction(320),
+    }
+    for label, coefficient in search.multiply_label_vectors(
+        {("pair", 2): Fraction(1)}, energy
+    ).items():
+        expected[label] = expected.get(label, Fraction(0)) - 36 * coefficient
+    assert alpha_six == expected
+    assert search.coupled_quadrupole_alpha_six_vector() == expected
+    assert ("pair", 8) not in alpha_six
+
+
+def test_rooted_radial_r1_reduction_cancels_top_moment_and_is_sharp():
+    vector = search.rooted_radial_r1_reduced_vector()
+    assert ("triangle", 4, 4, 6) not in vector
+    # The raw Hessian contributes 192*tau_444 and the cancelling positive
+    # localizer contributes another 1152*tau_444.
+    assert vector[("triangle", 4, 4, 4)] == 1344
+    assert sum(
+        coefficient * search.onb_label_value(label)
+        for label, coefficient in vector.items()
+    ) == 0
+
+
+def test_rooted_radial_r13_reduction_cancels_degree_sixteen_escape_terms():
+    vector = search.rooted_radial_r13_reduced_vector()
+    cancelled = {
+        ("triangle", 5, 5, 7),
+        ("triangle", 6, 6, 6),
+        ("triangle", 4, 6, 6),
+        ("triangle", 0, 6, 12),
+        ("triangle", 1, 5, 11),
+    }
+    assert not (cancelled & set(vector))
+    assert sum(
+        coefficient * search.onb_label_value(label)
+        for label, coefficient in vector.items()
+    ) == 0
+
+
 def test_e5_coverage_families_on_reference_measures():
     """Upper AM-GM cut and e5-Hankel localizations at exact reference
     measures: equality at uniform, vanishing on the pole-equator face."""
