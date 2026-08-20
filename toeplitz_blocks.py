@@ -212,6 +212,24 @@ def h2_shift_matrices(
 
 S2_POLY3: Poly3 = {(0, 0, 2): Fraction(1)}
 S2_PAIRING: GraphPolynomial = [(Fraction(1), (2, 0, 0, 0, 0, 0))]
+S4_POLY3: Poly3 = {(0, 0, 4): Fraction(1)}
+S4_PAIRING: GraphPolynomial = [(Fraction(1), (4, 0, 0, 0, 0, 0))]
+S6_POLY3: Poly3 = {(0, 0, 6): Fraction(1)}
+S6_PAIRING: GraphPolynomial = [(Fraction(1), (6, 0, 0, 0, 0, 0))]
+
+# p(t) = 8t^6 - 12t^4 + 5t^2 = (K(t) + 4/3)/4: the kernel coefficient
+# vector (5, -12, 8) on (t^2, t^4, t^6).  DELTA_P = p(t1) - p(t2) is the
+# equal-potential defect leaf: E_y[DELTA_P | x1, x2]
+# = (U_p(x1) - U_p(x2)) with U_p the p-potential, and
+# [K(x.y) - K(z.y)] = 4 * DELTA_P (constants cancel in the difference).
+DELTA_P: Poly3 = {
+    (2, 0, 0): Fraction(5),
+    (4, 0, 0): Fraction(-12),
+    (6, 0, 0): Fraction(8),
+    (0, 2, 0): Fraction(-5),
+    (0, 4, 0): Fraction(12),
+    (0, 6, 0): Fraction(-8),
+}
 
 
 def build_two_root_family(
@@ -220,6 +238,8 @@ def build_two_root_family(
     minor: bool = False,
     h2loc: bool = False,
     s2: bool = False,
+    s4: bool = False,
+    s6: bool = False,
 ) -> dict:
     """Exact T, G, and A = T - G label matrices for one sector family.
 
@@ -227,7 +247,13 @@ def build_two_root_family(
     complementary localization to the ``minor`` weight 1 - s^2: it
     concentrates the conditional-Jensen coupling at nearly-collinear
     root pairs -- the collision boundary s = +-1 where the measured
-    escape's sign-alternating T_n(+-1) signature lives.
+    escape's sign-alternating T_n(+-1) signature lives.  ``s4`` uses
+    the weight s^4: at basis cap c it equals the exact section
+    {s^2 phi : phi in basis} of the (untrimmed) cap-(c+2) plain family
+    (the conditional covariance is bilinear over root-measurable
+    factors), so it imports leaf-shell-(c+2) boundary content -- where
+    the measured all-measures escape lives (X.Z-modulation k = 2-3) --
+    while its own entries stay inside the degree-d vocabulary.
     """
     basis = sector_basis(sector, degree_cap)
     odd = sector.startswith("odd")
@@ -239,6 +265,12 @@ def build_two_root_family(
     if s2:
         weight = poly3_mul(weight, S2_POLY3)
         pairing = multiply_graph_polynomials(pairing, S2_PAIRING)
+    if s4:
+        weight = poly3_mul(weight, S4_POLY3)
+        pairing = multiply_graph_polynomials(pairing, S4_PAIRING)
+    if s6:
+        weight = poly3_mul(weight, S6_POLY3)
+        pairing = multiply_graph_polynomials(pairing, S6_PAIRING)
     size = len(basis)
 
     T: dict[Label, list[list[Fraction]]] = {}
@@ -281,12 +313,177 @@ def build_two_root_family(
         "minor": minor,
         "h2loc": h2loc,
         "s2": s2,
+        "s4": s4,
+        "s6": s6,
         "basis": basis,
         "size": size,
         "T": T,
         "G": G,
         "A": A,
     }
+
+
+# ---------------------------------------------------------------------------
+# The equal-potential defect square and the kernel-row covariance
+# (docs/LIMIT_EXTRACTION_NOTE.md section 6.1, docs/DEFECT_SQUARE_NOTE.md)
+# ---------------------------------------------------------------------------
+
+def krow_leaves(max_mod: int) -> tuple[list, list[Poly3]]:
+    """Kernel-row difference leaves s^m (t1^{2i} - t2^{2i}), i = 1..3."""
+    names, polys = [], []
+    for m in range(max_mod + 1):
+        for i in (1, 2, 3):
+            names.append((m, 2 * i))
+            polys.append(
+                {
+                    (2 * i, 0, m): Fraction(1),
+                    (0, 2 * i, m): Fraction(-1),
+                }
+            )
+    return names, polys
+
+
+def defect_leaves(max_mod: int) -> tuple[list, list[Poly3]]:
+    """The kernel-conjugated defect leaves s^m DELTA_P, m = 0..max_mod."""
+    names, polys = [], []
+    for m in range(max_mod + 1):
+        names.append((m, "dK"))
+        polys.append(poly3_mul(DELTA_P, {(0, 0, m): Fraction(1)}))
+    return names, polys
+
+
+def build_leafpoly_family(
+    kind: str,
+    basis_names: list,
+    leaf_polys: list[Poly3],
+    which: str = "A",
+    h2loc: bool = False,
+    minor: bool = False,
+    degree_cap: int | None = None,
+) -> dict:
+    """Generic two-root family over polynomial leaves.
+
+    For leaves phi_a(t1, t2, s) (polynomials, not monomials) and root
+    weight rho in {1, 1 - s^2}:
+
+        T_ab = E[rho phi_a(y) phi_b(y)]      (same leaf)
+        G_ab = E[rho phi_a(y) phi_b(y')]     (independent leaves)
+
+    ``which`` selects the exported matrix: "A" = T - G (the
+    root-conditional covariance of the leaf vector, PSD for every
+    measure by the conditional-Jensen argument -- identical proof to
+    build_two_root_family, which is the monomial special case) or
+    "G" (the Gram of the averaged flags E_y[phi_a], PSD for every
+    measure as a second-moment matrix).  Validity does not require the
+    leaves to sit in one parity sector: cross-sector entries vanish by
+    antipodality, which the label reduction applies automatically.
+    """
+    weight = poly3_mul(ONE_POLY3, ONE_MINUS_S2) if minor else ONE_POLY3
+    pairing = (
+        multiply_graph_polynomials(ONE_PAIRING, ROOT_PAIR_MINOR)
+        if minor
+        else ONE_PAIRING
+    )
+    size = len(leaf_polys)
+    T: dict[Label, list[list[Fraction]]] = {}
+    G: dict[Label, list[list[Fraction]]] = {}
+    for row in range(size):
+        for column in range(size):
+            for target, entry in (
+                (
+                    T,
+                    same_leaf_entry(
+                        leaf_polys[row], leaf_polys[column], weight
+                    ),
+                ),
+                (
+                    G,
+                    two_leaf_entry(
+                        leaf_polys[row], leaf_polys[column], pairing
+                    ),
+                ),
+            ):
+                for label, value in entry.items():
+                    matrix = target.setdefault(
+                        label,
+                        [[Fraction(0)] * size for _ in range(size)],
+                    )
+                    matrix[row][column] += value
+    if h2loc:
+        T = h2_shift_matrices(T)
+        G = h2_shift_matrices(G)
+    if which == "A":
+        A = subtract_matrices(T, G, size)
+    else:
+        A = {label: matrix for label, matrix in G.items()}
+    if degree_cap is None:
+        degree_cap = max(
+            poly3_degree(poly) for poly in leaf_polys
+        )
+    return {
+        "kind": kind,
+        "which": which,
+        "sector": "leafpoly",
+        "degree_cap": degree_cap,
+        "minor": minor,
+        "h2loc": h2loc,
+        "basis": basis_names,
+        "leaf_polys": leaf_polys,
+        "size": size,
+        "T": T,
+        "G": G,
+        "A": A,
+    }
+
+
+def build_defect_family(
+    max_mod: int = 2,
+    which: str = "A",
+    h2loc: bool = False,
+    minor: bool = False,
+) -> dict:
+    """The equal-potential defect square, all-measures valid.
+
+    Leaves s^m [p(t1) - p(t2)], p = (K + 4/3)/4, m = 0..max_mod.  The
+    G corner is the Gram of s^m (U_p(x1) - U_p(x2)) -- its (0,0) entry
+    is 2 Var_mu(U_p) = (1/8) Q[K(t1) - K(t2)], the all-measures shadow
+    of the KKT equal-potential identity -- and A = T - G is the
+    root-conditional covariance of the modulated defect vector.
+    """
+    names, polys = defect_leaves(max_mod)
+    return build_leafpoly_family(
+        "defect", names, polys, which=which, h2loc=h2loc, minor=minor
+    )
+
+
+def build_krow_family(
+    max_mod: int = 2,
+    which: str = "A",
+    h2loc: bool = False,
+    minor: bool = False,
+) -> dict:
+    """Kernel-row covariance: the unconjugated 3-per-modulation version.
+
+    Leaves s^m (t1^{2i} - t2^{2i}), i = 1..3, m = 0..max_mod.  Contains
+    the kernel-conjugated defect direction (5, -12, 8) in its span per
+    modulation block, but trims row-by-row (a dropped high-shell row
+    does not take the whole modulation with it).
+    """
+    names, polys = krow_leaves(max_mod)
+    return build_leafpoly_family(
+        "krow", names, polys, which=which, h2loc=h2loc, minor=minor
+    )
+
+
+def build_leafpoly_complement_family(base_builder, *args, **kwargs) -> dict:
+    """(1 - h2)-localized copy of a leaf-polynomial family."""
+    plain = base_builder(*args, h2loc=False, **kwargs)
+    localized = base_builder(*args, h2loc=True, **kwargs)
+    size = plain["size"]
+    out = dict(plain)
+    out["kind"] = plain["kind"] + "_comp"
+    out["A"] = subtract_matrices(plain["A"], localized["A"], size)
+    return out
 
 
 def build_pair_family(max_pair_degree: int, h2loc: bool = False) -> dict:
@@ -375,6 +572,9 @@ def build_h2_complement_family(
     degree_cap: int,
     minor: bool = False,
     which: str = "G",
+    s2: bool = False,
+    s4: bool = False,
+    s6: bool = False,
 ) -> dict:
     """The (1 - h2)-localized family: plain minus h2-localized copy.
 
@@ -383,9 +583,11 @@ def build_h2_complement_family(
     or T - G (conditional covariance).  ``which`` in {"G", "A"}.
     Directly targets the measured plain <-> h2loc seesaw of the escape.
     """
-    plain = build_two_root_family(sector, degree_cap, minor=minor)
+    plain = build_two_root_family(
+        sector, degree_cap, minor=minor, s2=s2, s4=s4, s6=s6
+    )
     localized = build_two_root_family(
-        sector, degree_cap, minor=minor, h2loc=True
+        sector, degree_cap, minor=minor, s2=s2, s4=s4, s6=s6, h2loc=True
     )
     size = plain["size"]
     return {
@@ -394,6 +596,9 @@ def build_h2_complement_family(
         "sector": sector,
         "degree_cap": degree_cap,
         "minor": minor,
+        "s2": s2,
+        "s4": s4,
+        "s6": s6,
         "h2loc": False,
         "basis": plain["basis"],
         "size": size,
@@ -667,12 +872,27 @@ def family_name(family: dict) -> str:
         name = "pair_jensen_minor"
         prefix = "h2loc_" if family["h2loc"] else ""
         return prefix + name + f"_d{family['degree_cap']}"
+    elif family["kind"] in ("defect", "krow", "defect_comp", "krow_comp"):
+        base = family["kind"].replace("_comp", "")
+        corner = "cov" if family["which"] == "A" else "gram"
+        if family["kind"].endswith("_comp"):
+            corner = "comp_" + corner
+        name = f"{base}_{corner}"
+        if family["minor"]:
+            name += "_minor"
+        if family["h2loc"]:
+            name = "h2loc_" + name
+        return name + f"_d{family['degree_cap']}"
     else:
         name = "jensen_pair"
     if family["minor"]:
         name += "_minor"
     if family.get("s2"):
         name += "_s2"
+    if family.get("s4"):
+        name += "_s4"
+    if family.get("s6"):
+        name += "_s6"
     if family["h2loc"]:
         name = "h2loc_" + name
     return name + f"_d{family['degree_cap']}"
@@ -796,6 +1016,34 @@ def direct_family_matrix(family: dict, points, weights) -> np.ndarray:
             matrix = h2_value() * matrix
         return matrix
 
+    if family["kind"] in ("defect", "krow", "defect_comp", "krow_comp"):
+        polys = family["leaf_polys"]
+        size = len(polys)
+        cov_matrix = np.zeros((size, size))
+        gram_matrix = np.zeros((size, size))
+        for x1 in range(count):
+            for x2 in range(count):
+                s = gram[x1, x2]
+                phi = np.zeros((size, count))
+                for y in range(count):
+                    t1, t2 = gram[x1, y], gram[x2, y]
+                    for index, poly in enumerate(polys):
+                        phi[index, y] = poly3_eval(poly, t1, t2, s)
+                mean = phi @ weights
+                second = phi @ np.diag(weights) @ phi.T
+                rho = weights[x1] * weights[x2]
+                if family["minor"]:
+                    rho *= 1.0 - s * s
+                cov_matrix += rho * (second - np.outer(mean, mean))
+                gram_matrix += rho * np.outer(mean, mean)
+        base = cov_matrix if family["which"] == "A" else gram_matrix
+        h2 = h2_value()
+        if family["kind"].endswith("_comp"):
+            return (1.0 - h2) * base
+        if family["h2loc"]:
+            return h2 * base
+        return base
+
     pair_like = family["kind"] in ("pair_jensen", "h2_complement_pair")
     if pair_like:
         degrees = family["basis"]
@@ -857,6 +1105,10 @@ def direct_family_matrix(family: dict, points, weights) -> np.ndarray:
                     rho *= 1.0 - s * s
                 if family.get("s2"):
                     rho *= s * s
+                if family.get("s4"):
+                    rho *= s**4
+                if family.get("s6"):
+                    rho *= s**6
                 cov_matrix += rho * (second - np.outer(mean, mean))
                 gram_matrix += rho * np.outer(mean, mean)
     p2 = sum(
@@ -925,6 +1177,16 @@ def self_test() -> None:
         build_pair_hankel_localized(6, h2loc=True),
         build_pair_weighted_jensen(4),
         build_pair_weighted_jensen(4, h2loc=True),
+        build_defect_family(2, which="A"),
+        build_defect_family(2, which="G"),
+        build_defect_family(1, which="A", h2loc=True),
+        build_defect_family(1, which="G", minor=True),
+        build_krow_family(1, which="A"),
+        build_krow_family(1, which="G", h2loc=True),
+        build_leafpoly_complement_family(build_defect_family, 1, which="A"),
+        build_leafpoly_complement_family(build_krow_family, 1, which="G"),
+        build_two_root_family("even_00", 3, s4=True),
+        build_two_root_family("even_11", 3, s4=True, h2loc=True),
     ]
     worst_gap = 0.0
     worst_eig = 0.0
@@ -1007,6 +1269,64 @@ def self_test() -> None:
         f"mode-2 (C_1) Jensen gap is strictly positive at a generic "
         f"circle measure (gap {generic_gap:.2e})",
         generic_gap > 1e-6,
+    )
+
+    # 2b. Defect-square identities.  (i) G_00 of the defect Gram equals
+    #     2 Var_mu(U_p) with U_p(x) = E_y[p(x.y)], p = (K + 4/3)/4 --
+    #     the variance form is the CE-square, exactly (the label
+    #     expansion contains both the triangle part E[U_p^2] and the
+    #     product part (E U_p)^2).  (ii) At the ONB measure the
+    #     potential U is constant on the support (equal-potential
+    #     face), so every defect G entry vanishes: the family is the
+    #     all-measures shadow of the KKT equal-potential identity.
+    p_coeffs = {2: 5.0, 4: -12.0, 6: 8.0}
+    defect_gram = build_defect_family(2, which="G")
+    var_ok = True
+    worst_var = 0.0
+    for _ in range(4):
+        points, weights = random_antipodal_measure(rng, 4)
+        expanded = assemble_from_labels(
+            defect_gram["A"], points, weights
+        )
+        gram = points @ points.T
+        count = len(points)
+        potentials = np.array(
+            [
+                sum(
+                    weights[y]
+                    * sum(
+                        c * gram[x, y] ** k
+                        for k, c in p_coeffs.items()
+                    )
+                    for y in range(count)
+                )
+                for x in range(count)
+            ]
+        )
+        mean_potential = float(weights @ potentials)
+        variance = float(
+            weights @ (potentials - mean_potential) ** 2
+        )
+        gap = abs(expanded[0, 0] - 2.0 * variance)
+        worst_var = max(worst_var, gap)
+        if gap > 1e-9:
+            var_ok = False
+    check(
+        f"defect Gram (0,0) == 2 Var_mu(U_p) at random measures "
+        f"(worst gap {worst_var:.2e})",
+        var_ok,
+    )
+    onb = np.vstack([np.eye(3), -np.eye(3)])
+    onb_weights = np.full(6, 1.0 / 6.0)
+    onb_gram = np.max(
+        np.abs(
+            direct_family_matrix(defect_gram, onb, onb_weights)
+        )
+    )
+    check(
+        f"defect Gram vanishes at the equal-potential ONB measure "
+        f"(max |entry| {onb_gram:.2e})",
+        onb_gram < 1e-12,
     )
 
     # 3. h2-localization: direct h2 * (T - G) == label-shifted expansion

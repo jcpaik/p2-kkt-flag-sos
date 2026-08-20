@@ -55,8 +55,10 @@ import numpy as np
 
 import sos_search
 from toeplitz_blocks import (
+    build_defect_family,
     build_fiber_toeplitz_family,
     build_h2_complement_family,
+    build_leafpoly_complement_family,
     build_pair_complement_family,
     build_pair_family,
     build_pair_hankel_localized,
@@ -127,6 +129,8 @@ SELECTOR_SETS = {
     ("deg18", "v3", "am_we1"): ["1em5", "1em6", "5em7"],
     ("deg18", "v3", "kkt"): ["1em5", "1em6", "5em7"],
     ("deg18", "v3", "am"): ["1em5", "1em6", "5em7"],
+    ("deg16", "v4", "am"): ["1em4", "1em5", "5em6"],
+    ("deg14", "v4", "am"): ["1em3", "1em4", "5em5"],
 }
 
 SCRATCH = Path(
@@ -309,6 +313,47 @@ def exact_direct_family_matrix(family: dict, points, weights):
         if family["h2loc"]:
             matrix = [[h2 * v for v in row] for row in matrix]
         return matrix
+    if family["kind"] in ("defect", "krow", "defect_comp", "krow_comp"):
+        polys = family["leaf_polys"]
+        size = len(polys)
+        cov = [[Fraction(0)] * size for _ in range(size)]
+        outer = [[Fraction(0)] * size for _ in range(size)]
+        for x1 in range(count):
+            for x2 in range(count):
+                s = gram[x1][x2]
+                phi = [
+                    [
+                        poly3_eval_exact(
+                            poly, gram[x1][y], gram[x2][y], s
+                        )
+                        for y in range(count)
+                    ]
+                    for poly in polys
+                ]
+                mean = [
+                    sum(phi[a][y] * weights[y] for y in range(count))
+                    for a in range(size)
+                ]
+                rho = weights[x1] * weights[x2]
+                if family["minor"]:
+                    rho *= 1 - s * s
+                for a in range(size):
+                    for b in range(size):
+                        second_ab = sum(
+                            phi[a][y] * phi[b][y] * weights[y]
+                            for y in range(count)
+                        )
+                        cov[a][b] += rho * (
+                            second_ab - mean[a] * mean[b]
+                        )
+                        outer[a][b] += rho * mean[a] * mean[b]
+        base = cov if family["which"] == "A" else outer
+        if family["kind"].endswith("_comp"):
+            return [[(1 - h2) * value for value in row] for row in base]
+        if family["h2loc"]:
+            return [[h2 * value for value in row] for row in base]
+        return base
+
     if family["kind"] in ("pair_jensen", "h2_complement_pair"):
         degrees = family["basis"]
         pair_values = [
@@ -370,6 +415,10 @@ def exact_direct_family_matrix(family: dict, points, weights):
                     rho *= 1 - s * s
                 if family.get("s2"):
                     rho *= s * s
+                if family.get("s4"):
+                    rho *= s**4
+                if family.get("s6"):
+                    rho *= s**6
                 for a in range(size):
                     for b in range(size):
                         second_ab = sum(
@@ -433,6 +482,10 @@ def exact_psd(matrix) -> bool:
 def restrict_family(family: dict, keep: list[int]) -> dict:
     out = dict(family)
     out["basis"] = [family["basis"][index] for index in keep]
+    if "leaf_polys" in family:
+        out["leaf_polys"] = [
+            family["leaf_polys"][index] for index in keep
+        ]
     out["size"] = len(keep)
     for corner in ("T", "G", "A"):
         matrices = {}
@@ -496,7 +549,7 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
         build_h2_complement_family("odd_01", cap, which="G"),
         build_h2_complement_family("odd_10", cap, which="G"),
     ]
-    if version in ("v2", "v3"):
+    if version in ("v2", "v3", "v4"):
         minor_cap = cap - 1
         odd_cap = cap - 2
         for sector in ("even_00", "even_11"):
@@ -524,7 +577,7 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
                     sector, minor_cap, minor=True, which="G"
                 ),
             ]
-    if version == "v3":
+    if version in ("v3", "v4"):
         # Fiber-Toeplitz blocks (trigonometric moment matrices of the
         # leaf's azimuthal fiber; docs/ENRICHMENTS.md section 8)
         # and the pair-sector moment families, targeting the v2
@@ -564,6 +617,69 @@ def export_families(degree: int = 14, version: str = "v1") -> list[dict]:
                 build_pair_hankel_localized(cap - 1, h2loc=h2loc),
                 build_pair_weighted_jensen(cap - 2, h2loc=h2loc),
             ]
+    if version == "v4":
+        # v4 = v3 + the equal-potential defect square program
+        # (docs/DEFECT_SQUARE_NOTE.md; pre-test tables
+        # sdpa_runs/defect_pretest_deg{14,16}.json).  Two ingredients:
+        #
+        # (a) s^4- and s^6-weighted Jensen families (+ h2loc and
+        #     (1-h2)-complement copies): exact sections of the
+        #     UNTRIMMED cap-(c+2)/(c+3) plain Jensen family on the
+        #     s^2/s^3-shifted leaf span -- they re-import exactly the
+        #     boundary rows the vocabulary trimming drops from the
+        #     full-cap families ((2,4,2), (4,2,2), (6,0,2), ... at
+        #     degree 16), which is where the measured all-measures
+        #     escape sits (X.Z-modulation k = 2-3, shell d/2).
+        #     Entry degree 4 + 2*s4cap (resp. 6 + 2*s6cap) <= degree.
+        #
+        # (b) the kernel-conjugated defect suite: dedicated small
+        #     blocks on the leaves s^m [p(t1) - p(t2)], p = (K+4/3)/4
+        #     -- the all-measures shadow of the KKT equal-potential
+        #     identity (G_00 = 2 Var(U_p)); their trimmed rows are
+        #     exact sections of blocks already present (so they cannot
+        #     move the exact optimum by themselves) but they give the
+        #     dual dedicated multipliers along the direction the
+        #     escape assembles, at negligible cost (<= 3x3 each).
+        #     h2loc_defect_cov is EXCLUDED: it pairs positive with the
+        #     am escape (weight, not cut; sign rule).
+        s4cap = cap - 2
+        s6cap = cap - 3
+        for sector in ("even_00", "even_11"):
+            families += [
+                build_two_root_family(sector, s4cap, s4=True),
+                build_two_root_family(
+                    sector, s4cap, s4=True, h2loc=True
+                ),
+                build_h2_complement_family(
+                    sector, s4cap, which="A", s4=True
+                ),
+                build_two_root_family(sector, s6cap, s6=True),
+                build_two_root_family(
+                    sector, s6cap, s6=True, h2loc=True
+                ),
+                build_h2_complement_family(
+                    sector, s6cap, which="A", s6=True
+                ),
+            ]
+        # Gram towers carry max_mod = 3: the s^3 Delta_p row (leaf
+        # degree 9) is BEYOND the base two-root cap at deg 16 yet its
+        # Gram entries stay in-vocabulary -- the one defect row that
+        # is genuinely new there (the shifted Hankel [m1 m2; m2 m3]),
+        # at the escape's measured k = 3 modulation.  Trimming
+        # automatically reduces it to m <= 2 at deg 14.
+        families += [
+            build_defect_family(3, which="A"),
+            build_defect_family(3, which="G"),
+            build_defect_family(3, which="G", h2loc=True),
+            build_defect_family(1, which="A", minor=True),
+            build_defect_family(2, which="G", minor=True),
+            build_leafpoly_complement_family(
+                build_defect_family, 3, which="A"
+            ),
+            build_leafpoly_complement_family(
+                build_defect_family, 3, which="G"
+            ),
+        ]
     return families
 
 
@@ -792,6 +908,8 @@ def run_selectors(
         prefix = prefix.replace("toep", "toep2")
     elif version == "v3":
         prefix = prefix.replace("toep", "toep3")
+    elif version == "v4":
+        prefix = prefix.replace("toep", "toep4")
     for tag in SELECTOR_SETS[(f"deg{degree}", version, cone)]:
         bound = SELECTOR_BOUNDS[tag]
         selector_path = str(
@@ -815,7 +933,7 @@ def main() -> None:
     parser.add_argument("--out")
     parser.add_argument("--degree", type=int, default=14)
     parser.add_argument(
-        "--version", choices=["v1", "v2", "v3"], default="v1"
+        "--version", choices=["v1", "v2", "v3", "v4"], default="v1"
     )
     parser.add_argument("--selectors", action="store_true")
     parser.add_argument(
@@ -848,6 +966,8 @@ def main() -> None:
         (18, "v3", "am_we1"): "sdpa_runs/deg18_we1_toep3.dat-s",
         (18, "v3", "kkt"): "sdpa_runs/deg18_h2w_h2all_toep3.dat-s",
         (18, "v3", "am"): "sdpa_runs/deg18_am_toep3.dat-s",
+        (16, "v4", "am"): "sdpa_runs/deg16_am_toep4.dat-s",
+        (14, "v4", "am"): "sdpa_runs/deg14_am_toep4.dat-s",
     }.get((args.degree, args.version, args.cone))
     out_path = args.out or default_out
     if out_path is None:
