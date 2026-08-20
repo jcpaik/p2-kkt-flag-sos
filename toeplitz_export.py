@@ -125,6 +125,8 @@ SELECTOR_SETS = {
     ("deg16", "v3", "kkt"): ["1em4", "1em5", "5em6"],
     ("deg16", "v3", "am"): ["1em4", "1em5", "5em6"],
     ("deg18", "v3", "am_we1"): ["1em5", "1em6", "5em7"],
+    ("deg18", "v3", "kkt"): ["1em5", "1em6", "5em7"],
+    ("deg18", "v3", "am"): ["1em5", "1em6", "5em7"],
 }
 
 SCRATCH = Path(
@@ -844,8 +846,15 @@ def main() -> None:
         (16, "v3", "kkt"): "sdpa_runs/deg16_h2w_h2all_toep3.dat-s",
         (16, "v3", "am"): "sdpa_runs/deg16_h2w_h2all_am_toep3.dat-s",
         (18, "v3", "am_we1"): "sdpa_runs/deg18_we1_toep3.dat-s",
-    }[(args.degree, args.version, args.cone)]
+        (18, "v3", "kkt"): "sdpa_runs/deg18_h2w_h2all_toep3.dat-s",
+        (18, "v3", "am"): "sdpa_runs/deg18_am_toep3.dat-s",
+    }.get((args.degree, args.version, args.cone))
     out_path = args.out or default_out
+    if out_path is None:
+        raise SystemExit(
+            "no default output path for "
+            f"(deg{args.degree}, {args.version}, {args.cone}); pass --out"
+        )
     if args.selectors:
         run_selectors(out_path, args.degree, args.version, args.cone)
         return
