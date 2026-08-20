@@ -46,3 +46,11 @@ unchanged: (i) limit-certificate extraction across the deg-14/16/18
 certificate sequence; (ii) the e5-localized / multi-weight target
 attaining zero by construction; (iii) the am-cone deg-18 solve for the
 proof-carrying exact certificate at the ~1e−13 scale (staged, m=2216).
+
+**Proof-carrying degree-18 wall (2026-08-20, pdOPT):**
+`deg18_am_toep3` (all-measures cone + 43 v3 families, m = 2216):
+bound = **−1.43335e−11** (primal/dual agree to 7 digits).  The
+KKT-inclusive/all-measures gap widens with degree (2.3× at deg-16,
+648× at deg-18 — the gradient rows carry real weight at 18).  Exact
+rounding to the all-measures theorem h2E ≥ −3e−11 dispatched — the
+cycle's capstone certificate (~500× beyond the committed −1.48e−8).
