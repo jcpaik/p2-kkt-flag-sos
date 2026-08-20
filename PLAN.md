@@ -73,59 +73,35 @@ docs/ENRICHMENTS.md.
 
 ## Next actions (work queue, in order)
 
-*(2026-08-17: items 1–2 of the previous queue are done — the artifact
-store was wiped and regenerated first; see the dashboard and
-docs/SUBCASES_AND_RECORD.md.  New queue:)*
+*(2026-08-20: the Jensen/fiber-Toeplitz campaign and the degree-14/16/18
+ladder are complete — see the dashboard, docs/UNPROJECTED_ESCAPE_NOTE.md
+and docs/LIMIT_EXTRACTION_NOTE.md.  The proof-carrying tower decays
+purely geometrically (986×/855× per two degrees), so degree escalation
+alone cannot land on zero: the closing construction below is the queue.)*
 
-1. **Kill the fingerprinted escape** (one prong measured, two open):
-   (a) ~~$h_2$-localized theta-atom windows~~ — **measured inert**
-   (2026-08-17): the theta-augmented weighted selectors reproduce the
-   control traces $765.0/8133.57$ to 6 digits at
-   $\varepsilon=10^{-3}/10^{-4}$; the 136 window/cap cuts block the
-   fingerprinted direction but certificate mass routes around them
-   (docs/ENRICHMENTS.md verdict: recession repair only).
-   (b) ~~arity-2 weighted-(E1) projection~~ — **classified and
-   measured** (docs/SHARP_STRUCTURE.md): the projection is
-   structurally *unable* to block the escape (it removes certificate
-   generators; the growth direction lives inside the admissible span
-   — the split verdict above).  Its value is the reduced GMP sizes
-   (deg-18 reachable) and the sharpness-compatibility certificates
-   for tower cuts.
-   (c) **NEW, from the circle-pair theorem: measure-valued Toeplitz
-   blocks.**  The exact mechanism that closed the circle-pair case is
-   the joint positivity of azimuthal-mode Toeplitz matrices
-   ($|\zeta_{2k}|\ge2|\zeta_k|^2-1$); its flag-algebra incarnation is
-   PSD blocks pairing modulation-$k$ against modulation-$2k$ two-root
-   generators over a common root pair — matrix analogues of the
-   inert scalar windows, loading exactly on the escape's
-   $p_2\times$(high-modulation) labels.  Derive validity, implement,
-   A/B against `fingerprint_D_e3e4.json`, re-run the trace law.
-2. **Degree-16 ladder** (GMP queue, 200-bit for bounds after the
-   128-bit pdINF lesson): (i) `deg16_h2w_h2all` dual (running) —
-   wall position at degree 16; (ii) plain deg-16 selectors at
-   $\varepsilon=10^{-4},10^{-5}$ — wall-free pole exponent +
-   fingerprint cross-check; (iii) **deg-16 theta A/B selectors** at
-   the same $\varepsilon$ — the deg-14 inertness of the tower cuts
-   could be a wall artifact; if the cuts bend the law at deg 16 in
-   the $10^{-5}$ regime, the theta windows are the pole repair after
-   all; (iv) `deg16_h2w_h2all_am_le1` dual (m = 1173) — the
-   sharp-face localized-projection bound; (v) the am-cone selector
-   law (`sel_am_*`).  Then deg-18 (`deg18_h2w_h2all_am_we1`,
-   m = 1015) once the cut-stacking design from item 1(c) exists.
-3. **All-measures (proof-carrying) confirmations**: the am-cone
-   selector grid is exported (`sel_am_1em3/1em4/5em5.dat-s`); solve
-   after item 2 releases the GMP slot, fingerprint, and check the
-   escape is the same tower (expected).  Or implement the $W$-KKT
-   re-encoding (docs/ENRICHMENTS.md §5) to make the strong
-   cone proof-carrying.
-4. **Multi-weight program**: if item 1 leaves a residual escape, decide
-   the `graph_5` label extension for the $e_5(I-A_2)$ weight /
-   depth-$\le4$ $A_2$-word blocks (docs/ENRICHMENTS.md §4);
-   the multiplier search over any dictionary is convex (ibid. §1).
-5. **Exactification, the moment any trace law plateaus**: max-margin
-   interior point (§3 fixes list) → rational rounding → independent
-   verification (`verify_certificate.py`).  With the reduction lemma
-   this closes the conjecture.
+1. **Adjoin the equal-potential defect as an all-measures object**
+   (LIMIT_EXTRACTION_NOTE §6.1): the KKT tower's dominant certificate
+   object is $h_2\mathrm{loc}\,[K(X\!\cdot\!Y)-K(Z\!\cdot\!Y)]^2$
+   (+ its $(X\!\cdot\!Z)^{2m}$-modulated copies, m = 1, 2).  Build the
+   valid all-measures analogue (variance-form labels via the one-sided
+   truncation principle), pair-test against the stored escape data,
+   export, solve.
+2. **Resum the even-sector boundary layer** (§6.2): the residual escape
+   is a swap-antisymmetric $q$-profile in leaf degree at fiber
+   modulation $k\le3$; the finite dictionary is the generating-function
+   labels $k_G$ over the two admissible spin-0 kernels
+   ($T_2+\tfrac13$, $T_6+\tfrac13$) and their $(X\!\cdot\!Z)^2$
+   products, with exactly-rational one-sided truncation cuts.
+3. **Cheap pre-test** (§6.3): the deviatoric-square weight
+   $w=(t^2-\tfrac13)^2$ — pair against the escape fingerprints before
+   any solve.
+4. **e5-localized module** (docs/E5_WEIGHT_NOTE.md): the
+   $(h_2+\kappa e_5)E$ multiplier target still needs its localization
+   layer; deg-16-scale build.
+5. **Exactification pipeline on every new wall** (now sub-minute per
+   solve, docs/EXACT_CERTIFICATE_NOTE.md): keep the certificates/
+   ladder current; the moment a wall lands at ≥ 0 in the all-measures
+   cone, the reduction lemma closes the conjecture.
 
 ## Map of the repository
 
