@@ -23,10 +23,15 @@ feasible space's exact knowledge of the equal-potential identity);
 (ii) the pair-sector
 complement block converges to the square of the admissible deviatoric
 leaf $(t^2-\tfrac13)$, with a transient exactly along the kernel top
-$48t^4-32t^6$; (iii) the walls decay *faster than any fixed*
-$q^{d^2}$ — both prescribed two-parameter models overshoot zero.  The
-escaping tail is a swap-antisymmetric boundary layer in the two-root
-*even* sectors with $X\!\cdot\!Z$-modulation concentrated at $k=2,3$.
+$48t^4-32t^6$; (iii) the KKT walls decay *faster than any fixed*
+$q^{d^2}$ — both prescribed two-parameter models overshoot zero —
+while the **all-measures walls (three points, the third solved by
+this session) decay only geometrically ($\sim900\times$/2 degrees)
+with $c_\infty<0$ fits**: the proof-carrying tower needs a new
+mechanism, not more degree.  The escaping tail is a
+swap-antisymmetric boundary layer in the two-root *even* sectors
+whose $X\!\cdot\!Z$-modulation index climbs slowly with degree
+($k\approx1\to2\to3$).
 
 ---
 
@@ -93,14 +98,30 @@ $\ln|W|$ increments $-6.5470$, $-12.3776$.
 * Quadratic-exponent fit (exact): $\ln|W| = -129.94 + 18.591d
   -0.72882 d^2$; the enormous linear prefactor says this
   parameterization is not natural either.
-* **All-measures tower**: one ratio only, $854.8\times$ per 2
-  degrees; the KKT/am gap widens ($2.3\times$ at 16, $648\times$ at
-  18) — the KKT acceleration is a KKT-face effect (see §4a).
+* **All-measures tower (3 points, this session)**: ratios $986.0\times$
+  then $854.8\times$ per 2 degrees — **nearly constant geometric,
+  mildly decelerating**; local theta-$q$ *rises* ($0.89146\to0.90549$).
+  The exact 3-point fits give
+  $c_\infty+Aq^{d^2}$: $q=0.89145$, $c_\infty=-9.39\times10^{-12}$
+  ($=0.65\,W_{18}$), and $c_\infty+Ar^d$: $r=0.03184$,
+  $c_\infty=-1.91\times10^{-12}$ ($=0.13\,W_{18}$).  **Both give
+  $c_\infty<0$**: on its current enrichment set the proof-carrying
+  tower extrapolates to a *stall* around $-10^{-12}$, not to zero.
+  The single-power consistency exponent is $p^\*\approx0.7$
+  (sub-geometric) — a plain approximation ladder.  The KKT/am gap
+  widens ($3.3\times$ at 14, $2.3\times$ at 16, $648\times$ at 18) —
+  the KKT acceleration is a KKT-face effect (see §4a).
 
-**Verdict on the law**: super-geometric and super-theta;
-the acceleration itself accelerates.  No 2-parameter law survives; a
-drifting-$q$ theta law $q_d^{d^2}$ (pole sliding with degree, cf. the
-pole-law entries in PLAN.md) or $\exp(-cd^{\,6})$ both remain viable.
+**Verdict on the law**: the two towers obey qualitatively different
+laws.  KKT: super-geometric and super-theta, acceleration itself
+accelerating — consistent with walls $\to0^-$ (both 2-parameter
+models overshoot, $c_\infty>0$); a drifting-$q$ theta law
+$q_d^{d^2}$ (pole sliding with degree, cf. the pole-law entries in
+PLAN.md) or $\exp(-cd^{\,6})$ both remain viable.  All-measures:
+ordinary geometric with mild deceleration and $c_\infty<0$ fits —
+the family tower v3 does **not** yet contain the mechanism that
+drives the KKT walls; without new all-measures-valid enrichments the
+am ladder is headed for a plateau near $-10^{-12}$.
 
 ## 3. Gauge anatomy: what the raw fingerprints actually measure
 
@@ -192,6 +213,7 @@ with converging direction and a closed-form transient:
 | KKT 14 | $-0.3210884$ | $-0.13033$ | $-0.6666730$ | $0.8210$ |
 | KKT 16 | $-0.3327976$ | $-0.0056968$ | $-0.6666589$ | $0.6165$ |
 | KKT 18 | $-0.3333304$ | $-2.903\times10^{-5}$ | $-0.6669$ | $0.2968$ |
+| am 14 | $-0.3243385$ | $-0.11621$ | $-0.6665953$ | $0.8652$ |
 | am 16 | $-0.3328001$ | $-0.0062106$ | $-0.6666566$ | $0.5530$ |
 | am 18 | $-0.3333155$ | $-2.116\times10^{-4}$ | $-0.6666677$ | $0.4877$ |
 
@@ -204,9 +226,12 @@ with converging direction and a closed-form transient:
   top-degree part of the kernel** — with amplitude dying
   super-geometrically ($\times22.9$, then $\times196$ per step,
   mirroring the wall acceleration).
-* $\lambda$: KKT copy decays with the wall; the am copy decays slowly
-  ($0.553\to0.488$); whether $\lambda_\infty>0$ is open (2 am
-  points).
+* $\lambda$: KKT copy decays with the wall; the am copy converges:
+  $0.8652\to0.5529\to0.4877$, Aitken $\lambda_\infty=0.4704$
+  ($\rho=0.209$) — **the deviatoric-leaf square survives in the am
+  limit with a finite positive coefficient** $\approx0.47$ (no
+  credible closed form at this precision; $8/17=0.4706$ is within the
+  extrapolation error and is recorded as numerology only).
 
 ### 4c. A shared certificate core, and what is *not* shared
 
@@ -254,11 +279,12 @@ layer:
 * **symmetry**: top escape directions are swap-**antisymmetric**
   (e.g. $d{=}18$: $\pm0.39$ on $(2,4,2)-(4,2,2)$ and
   $(5,1,1)-(1,5,1)$);
-* **modulation**: mass by $X\!\cdot\!Z$-exponent $k$ peaks at $k=2$
-  and spreads to $k=3,4$ as $d$ grows ($k{=}3$: $1.4\times10^4\to
-  3.2\times10^4$) — low fiber-modulation, *not* captured by the
-  explicit `ftoep*` families, which stay empty in both towers
-  (traces $\le10^{-9}$ up to gauge mass);
+* **modulation**: mass by $X\!\cdot\!Z$-exponent $k$ *climbs with
+  degree*: the am peak sits at $k=0\text{–}1$ at $d{=}14$, $k=2$ at
+  $d{=}16$, $k=2\text{–}3$ at $d{=}18$ ($k{=}3$: $1.4\times10^4\to
+  3.2\times10^4$) — a slowly rising fiber-modulation index, *not*
+  captured by the explicit `ftoep*` families, which stay empty in
+  both towers (traces $\le10^{-9}$ up to gauge mass);
 * the `h2comp_gram_even_*` and Jensen towers at $d=18$ hold only
   $O(10^3$–$10^4)$ am mass — the v3 families did their job
   (they moved the law), but the residual escape has moved past them.
@@ -273,8 +299,10 @@ The limit certificate exists only in an *enriched* algebra that
 resums the boundary layer: finitely many converging blocks plus one
 tail family indexed along the degree axis.  Confidence: high on the
 gauge anatomy, the $[\Delta K]^2$ and deviatoric-leaf identifications,
-and the model-overshoot ($c_\infty>0$) statements; medium on the
-tail-profile growth rates (2–3 points); low on any specific wall law.
+and the KKT model-overshoot ($c_\infty>0$) statements; medium-high on
+the am tower being a plain geometric ladder with a predicted stall
+(3 points, consistent fits); medium on the tail-profile growth rates;
+low on any specific KKT wall law.
 
 ## 6. Recommendation for the closing construction
 
@@ -307,8 +335,12 @@ tail-profile growth rates (2–3 points); low on any specific wall law.
    its own limit and is cheap to pair-test against the current escape
    data before any solve.
 4. **Spend future GMP budget on the am tower**, which is the one that
-   composes with the reduction lemma; a third am point (deg-14+v3 am)
-   was launched by this session — see §7.
+   composes with the reduction lemma; the third am point (deg-14+v3
+   am) delivered by this session (§7) shows the current am ladder is
+   geometric with $c_\infty<0$ fits — i.e. degree-20 am without new
+   blocks is predicted to land near $-1.7\times10^{-14}$ and then
+   flatten; measure item 1's blocks at degree 14/16 *first* (cheap
+   solves) before buying more degree.
 
 ## 7. Session artifacts / in-flight
 
@@ -319,9 +351,18 @@ tail-profile growth rates (2–3 points); low on any specific wall law.
 * Bug fixed in `toeplitz_export.py`: `--out` with a
   (degree, version, cone) triple absent from the default table no
   longer KeyErrors.
-* In flight at the time of writing: `deg14_am_toep3` export + one
-  200-bit GMP solve (the third all-measures point).  Result to be
-  appended here.
+* **Third all-measures point (delivered)**: `deg14_am_toep3.dat-s`
+  ($m=810$, 97 blocks, 39 families) exported and solved at 200-bit
+  in 19.4 min, pdFEAS, objValPrimal $=-6.6667874759413337\times
+  10^{-1}$, wall $=-1.2080927467\times10^{-5}$ (40-digit
+  recomputation from xVec).  Capture pickle
+  `toeplitz_capture_deg14_h2w_v3_am.pkl` and `fp_deg14am.json` in the
+  scratchpad; 3-point am analysis in `am3_analysis.py`.  Structure of
+  the $d{=}14$ am dual: no $[\Delta K]^2$ spike (overlap $0.0000$),
+  spread spectrum ($\lambda_1=8.0\times10^3$,
+  $\lambda_2=5.9\times10^3$), boundary-shell profile peaking at
+  shells 6–7, $X\!\cdot\!Z$ modulation peak at $k=0\text{–}1$ —
+  fully consistent with §5's traveling-wave picture.
 
 **§7 addendum (orchestrator, 2026-08-20): the third all-measures
 point.**  `deg14_am_toep3` (m = 810, 200-bit, pdFEAS):
