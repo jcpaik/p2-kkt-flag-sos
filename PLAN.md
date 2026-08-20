@@ -37,7 +37,8 @@ Where things stand (details and provenance in §3–§6 below):
 | sharp-face (we1) route | **closed**: we1+v3 selector pUNBD at $10^{-5}$ (cannot certify at any trace) | REGEN_NOTES |
 | **degree-18 + v3 (2026-08-19)** | wall $\mathbf{-2.21142\times10^{-14}}$ (pdOPT; cascade accelerating: $700\times\to240{,}000\times$ per two degrees); trace law exponent 0.32 at depth — **no plateau: zero is a limit, not attained** | docs/UNPROJECTED_ESCAPE_NOTE.md §10 |
 | **exact certificate #2 (2026-08-19)** | $h_2E\ge-2.745\times10^{-14}$ (KKT-inclusive relaxation; gradient rows load-bearing), checker PASS 139 s; pipeline upgraded (iterative-refinement $\lambda$, fraction-free exact PSD) | certificates/, docs/EXACT_CERTIFICATE_NOTE.md §6 |
-| proof-carrying degree-18 | am-cone stack staged (m = 2216) — dual running; its rounding = the all-measures exact certificate at the $10^{-13}$ scale | sdpa_runs/deg18_am_toep3.* |
+| **proof-carrying degree-18 (2026-08-20)** | wall $\mathbf{-1.43335\times10^{-11}}$ (pdOPT); KKT/am gap widens with degree ($2.3\times$ at 16, $648\times$ at 18) | sdpa_runs/deg18_am_toep3.* |
+| **CAPSTONE EXACT CERTIFICATE (2026-08-20)** | $h_2E\ge-1.7356\times10^{-11}$ for **every** antipodal probability measure — unconditional, zero KKT content, reduction lemma composes; checker PASS 83 s; $854\times$ beyond the deg-16 record | certificates/h2E_geq_deg18_am.json.gz |
 | (E1) complementary-slackness equations | solved in closed form, one- and two-root layers, 54 exact checks | §6, docs/SHARP_STRUCTURE.md |
 | wrapper lemmas for the final proof | drafted, machine-checked | docs/FOUNDATIONS.md |
 | conjecture status in the literature (swept 2026-08-17) | open; kernel untouched; nearest relative (BMN 2409.16508 §8) also open | §7 below |
